@@ -139,8 +139,8 @@ Get-ChildItem E:\portableAI -Recurse -File |
 
 **Cíl:** rozšířit stack o další CLI.
 
-1. Přidejte nástroj do `$ComponentCatalog` v `scripts/Setup-DeepSeekStack.ps1`
-   (`Name`, `Package`, `Binary`, `Description`).
+1. Přidejte nástroj do katalogu `Get-ComponentCatalog` v `scripts/_common.ps1`
+   (`Name`, `DisplayName`, `Category`, `Package`, `Binary`, `Description`).
 2. Přidejte ho do `launcher/Menu.ps1` jako novou volbu.
 3. Přidejte wrapper `launcher/Launch-<Název>.cmd`.
 4. Zaregistrujte ho v `Get-WorkspaceManifest` (`CmdScripts`).

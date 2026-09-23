@@ -755,3 +755,304 @@ function Get-WorkspaceManifest {
         )
     }
 }
+
+function Get-ComponentShimPath {
+    <#
+    .SYNOPSIS
+        Najde spustitelnou binárku komponenty v zadaném adresáři.
+    .DESCRIPTION
+        Zkusí postupně `<dir>/<binary>.cmd`, `<binary>.exe`, `<binary>.ps1`,
+        `<binary>` a POSIX variantu `<dir>/bin/<binary>`. Vrací první
+        existující cestu, nebo `$null`, když adresář nebo binárka neexistuje.
+        Nikdy nevyhazuje výjimku.
+
+        Sdílená logika pro `Test-Component` (detekce) i pro
+        `Resolve-ComponentShim` v setupu, aby se obě místa nerozešla.
+    .PARAMETER Directory
+        Adresář, ve kterém se binárka hledá (např. `bin/npm-global`).
+    .PARAMETER Binary
+        Název binárky bez přípony (např. `reasonix`).
+    .OUTPUTS
+        System.String - absolutní cesta k binárce, nebo $null
+    .EXAMPLE
+        Get-ComponentShimPath -Directory 'C:\portableAI\bin\npm-global' -Binary 'reasonix'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [AllowEmptyString()]
+        [string]$Directory,
+
+        [Parameter(Mandatory = $true, Position = 1)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Binary
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Directory) -or -not (Test-Path -LiteralPath $Directory -PathType Container)) {
+        return $null
+    }
+
+    $candidates = @(
+        (Join-Path -Path $Directory -ChildPath ('{0}.cmd' -f $Binary))
+        (Join-Path -Path $Directory -ChildPath ('{0}.exe' -f $Binary))
+        (Join-Path -Path $Directory -ChildPath ('{0}.ps1' -f $Binary))
+        (Join-Path -Path $Directory -ChildPath $Binary)
+        (Join-Path -Path $Directory -ChildPath ('bin/{0}' -f $Binary))
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Get-ComponentCatalog {
+    <#
+    .SYNOPSIS
+        Vrátí katalog AI komponent workspace včetně kategorií.
+    .DESCRIPTION
+        Jediný zdroj pravdy o komponentách, které workspace umí nainstalovat
+        do `bin/npm-global`. Používají ho `Setup-DeepSeekStack.ps1`
+        (instalace), `Get-AiStackInfo.ps1` (diagnostika) a
+        `Test-Workspace.ps1` (self-test), aby se kategorie, verze a názvy
+        nerozešly.
+
+        Kategorie určuje, jak přísně se komponenta vyžaduje:
+
+          Required      - musí být vždy ve workspace (jinak FAIL)
+          Recommended   - instaluje se, pokud není `-SkipOptional`
+          Optional      - instaluje se jen na výslovné vyžádání
+                          (`-InstallOptional <jméno>`)
+
+        `Category` je zároveň prioritní pořadí v diagnostice.
+        Názvy a verze jsou ověřené proti živému npm registry a GitHub
+        releases (audit 2026-09-23).
+    .OUTPUTS
+        System.Object[] - pole `pscustomobject` záznamů komponent
+    .EXAMPLE
+        (Get-ComponentCatalog | Where-Object { $_.Category -eq 'Required' }).Name
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Object[]])]
+    param()
+
+    return @(
+        [pscustomobject]@{
+            Name        = 'Reasonix'
+            DisplayName = 'Reasonix'
+            Category    = 'Required'
+            Package     = 'reasonix'
+            Version     = '1.38.11'
+            Binary      = 'reasonix'
+            Source      = 'npm'
+            SourceUrl   = 'https://www.npmjs.com/package/reasonix'
+            Portable    = $true
+            Install     = 'npm install -g --prefix bin/npm-global reasonix@1.38.11'
+            Verify      = '& "bin/npm-global/reasonix.cmd" --version'
+            VerifyArgs  = @('--version')
+            Description = 'DeepSeek-native coding agent (cache-first, terminal-first)'
+            AltSources  = @(
+                'winget install --id ESEngine.ReasonixCLI --exact (POZOR: user-scope, NENI portable)'
+                'GitHub releases (offline instalace): https://github.com/esengine/DeepSeek-Reasonix/releases/download/v1.38.11/reasonix-windows-amd64.zip + SHA256SUMS'
+            )
+        }
+        [pscustomobject]@{
+            Name        = 'Claude Code'
+            DisplayName = 'Claude Code'
+            Category    = 'Optional'
+            Package     = '@anthropic-ai/claude-code'
+            Version     = '2.1.280'
+            Binary      = 'claude'
+            Source      = 'npm'
+            SourceUrl   = 'https://www.npmjs.com/package/@anthropic-ai/claude-code'
+            Portable    = $true
+            Install     = 'npm install -g --prefix bin/npm-global @anthropic-ai/claude-code@2.1.280'
+            Verify      = '& "bin/npm-global/claude.cmd" --version'
+            VerifyArgs  = @('--version')
+            Description = 'Anthropic CLI nad DeepSeek backendem (ANTHROPIC_BASE_URL)'
+            AltSources  = @(
+                'npm mimo workspace: npm install -g @anthropic-ai/claude-code@2.1.280 (POZOR: zapisuje do profilu uzivatele, NENI portable)'
+                'GitHub releases (CHANGELOG, nikoli binarka): https://github.com/anthropics/claude-code/releases'
+            )
+        }
+        [pscustomobject]@{
+            Name        = 'DeepSeek Harness'
+            DisplayName = 'DeepSeek Harness'
+            Category    = 'Optional'
+            Package     = '@deepseek-ai/dsh'
+            Version     = '0.1.5-rc.3'
+            Binary      = 'dsh'
+            Source      = 'npm'
+            SourceUrl   = 'https://www.npmjs.com/package/@deepseek-ai/dsh'
+            Portable    = $true
+            Install     = 'npm install -g --prefix bin/npm-global @deepseek-ai/dsh@0.1.5-rc.3'
+            Verify      = '& "bin/npm-global/dsh.cmd" --version'
+            VerifyArgs  = @('--version')
+            Description = 'DeepSeek Harness CLI (profile boot, plugins, browser UI)'
+            AltSources  = @(
+                'npm mimo workspace: npm install -g @deepseek-ai/dsh@0.1.5-rc.3 (POZOR: zapisuje do profilu uzivatele, NENI portable)'
+            )
+        }
+        [pscustomobject]@{
+            Name         = 'Pi'
+            DisplayName  = 'Pi'
+            Category     = 'Recommended'
+            Package      = '@earendil-works/pi-coding-agent'
+            Version      = '0.87.1'
+            Binary       = 'pi'
+            Source       = 'npm'
+            SourceUrl    = 'https://www.npmjs.com/package/@earendil-works/pi-coding-agent'
+            Portable     = $true
+            Install      = 'npm install -g --prefix bin/npm-global @earendil-works/pi-coding-agent@0.87.1'
+            Verify       = '& "bin/npm-global/pi.cmd" --version'
+            VerifyArgs   = @('--version')
+            Description  = 'Pi coding agent (read, bash, edit, write + session management)'
+            AltSources   = @(
+                'npm mimo workspace: npm install -g @earendil-works/pi-coding-agent@0.87.1 (POZOR: zapisuje do profilu uzivatele, NENI portable)'
+            )
+            Extension    = 'pi-reasonix@1.1.0'
+            ExtensionVar = 'PORTABLEAI_PI_EXTENSIONS'
+        }
+    )
+}
+
+function Test-Component {
+    <#
+    .SYNOPSIS
+        Najde komponentu v pěti režimech a určí, zda je přenositelná.
+    .DESCRIPTION
+        Prohledá postupně (pořadí je zároveň prioritou vítěze):
+
+          1. workspace       - `<root>/bin/npm-global/<binary>.cmd`
+          2. workspace-local - `<root>/node_modules/.bin/<binary>.cmd`
+          3. global-npm      - `%APPDATA%\npm\<binary>.cmd`
+          4. system          - `Get-Command <binary>`
+          5. none            - nenalezeno
+
+        Vítězí první zásah v tomto pořadí; `Portable` je `$true` jen pro
+        `workspace` a `workspace-local`, tedy pro cesty uvnitř workspace.
+        Zásahy se deduplikují podle adresáře, takže tatáž instalace nalezená
+        přes `global-npm` i `system` se počítá jednou a `MultipleFound`
+        zůstane `$false`.
+
+        Verze se zjišťuje spuštěním vítězné binárky s `--version`
+        (vypnutelné přes `-SkipVersion`); když se nepodaří, je prázdná.
+        Funkce nikdy nevyhazuje výjimku a nic neinstaluje.
+    .PARAMETER Name
+        Název komponenty pro report (obvykle název binárky).
+    .PARAMETER Binary
+        Název binárky bez přípony. Když není zadán, použije se `Name`.
+    .PARAMETER Root
+        Kořen workspace. Když není zadán, použije se `Get-WorkspaceRoot`.
+    .PARAMETER SkipVersion
+        Nezjišťovat verzi (nespouštět binárku) - hodí se pro rychlé kontroly.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+    .EXAMPLE
+        Test-Component -Name 'reasonix' -Root (Get-WorkspaceRoot)
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Management.Automation.PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Position = 1)]
+        [string]$Binary,
+
+        [Parameter()]
+        [string]$Root,
+
+        [Parameter()]
+        [switch]$SkipVersion
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Binary)) {
+        $Binary = $Name
+    }
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        $Root = Get-WorkspaceRoot
+    }
+
+    $globalNpmDirectory = ''
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:APPDATA)) {
+        $globalNpmDirectory = Join-Path -Path $env:APPDATA -ChildPath 'npm'
+    }
+
+    $specs = @(
+        [pscustomobject]@{ Source = 'workspace'; Directory = (Join-Path -Path $Root -ChildPath 'bin/npm-global') }
+        [pscustomobject]@{ Source = 'workspace-local'; Directory = (Join-Path -Path $Root -ChildPath 'node_modules/.bin') }
+        [pscustomobject]@{ Source = 'global-npm'; Directory = $globalNpmDirectory }
+    )
+
+    $locations = [System.Collections.Generic.List[object]]::new()
+    $seenDirectories = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($spec in $specs) {
+        $candidatePath = Get-ComponentShimPath -Directory ([string]$spec.Directory) -Binary $Binary
+        if (-not $candidatePath) {
+            continue
+        }
+
+        $candidateDirectory = Split-Path -Path $candidatePath -Parent
+        if ($seenDirectories.Add($candidateDirectory)) {
+            [void]$locations.Add([pscustomobject]@{ Source = [string]$spec.Source; Path = $candidatePath })
+        }
+    }
+
+    $systemCommand = Get-Command -Name $Binary -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($systemCommand) {
+        $systemPath = [string]$systemCommand.Source
+        if ([string]::IsNullOrWhiteSpace($systemPath)) {
+            $systemPath = [string]$systemCommand.Definition
+        }
+        if (-not [string]::IsNullOrWhiteSpace($systemPath)) {
+            $systemDirectory = Split-Path -Path $systemPath -Parent
+            if ([string]::IsNullOrWhiteSpace($systemDirectory)) {
+                $systemDirectory = $systemPath
+            }
+            if ($seenDirectories.Add($systemDirectory)) {
+                [void]$locations.Add([pscustomobject]@{ Source = 'system'; Path = $systemPath })
+            }
+        }
+    }
+
+    $source = 'none'
+    $path = ''
+    $portable = $false
+    $version = ''
+
+    if ($locations.Count -gt 0) {
+        $source = [string]$locations[0].Source
+        $path = [string]$locations[0].Path
+        $portable = ($source -in @('workspace', 'workspace-local'))
+
+        if (-not $SkipVersion) {
+            try {
+                $rawVersion = & $path '--version' 2>&1 | Select-Object -First 1
+                if ($null -ne $rawVersion) {
+                    $version = ([string]$rawVersion).Trim()
+                }
+            }
+            catch [System.Exception] {
+                Write-Verbose ('Verzi {0} nelze zjistit: {1}' -f $path, $_.Exception.Message)
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Name          = $Name
+        Binary        = $Binary
+        Found         = ($locations.Count -gt 0)
+        Source        = $source
+        Path          = $path
+        Version       = $version
+        Portable      = $portable
+        MultipleFound = ($locations.Count -gt 1)
+    }
+}

@@ -38,8 +38,8 @@ problémy.
 
 ## 7. Jak nainstaluji nový nástroj?
 
-Přidejte ho do `$ComponentCatalog` v `scripts/Setup-DeepSeekStack.ps1` a
-spusťte setup. Nebo ručně:
+Přidejte ho do katalogu `Get-ComponentCatalog` v `scripts/_common.ps1`
+(nezapomeňte na `Category` a `DisplayName`) a spusťte setup. Nebo ručně:
 
 ```powershell
 npm install -g --prefix bin\npm-global <balíček>
@@ -47,6 +47,28 @@ npm install -g --prefix bin\npm-global <balíček>
 
 `-g --prefix` zapíše spustitelné shimy přímo do `bin\npm-global`, takže je
 launcher najde v `PATH` (viz [docs/02-CONFIG.md](../docs/02-CONFIG.md)).
+
+## 7a. Co jsou kategorie komponent?
+
+`Required` (`reasonix`) se instaluje vždy, `Recommended` (`pi`) všude kromě
+`-SkipOptional` a `Optional` (`claude`, `dsh`) jen na výslovné vyžádání:
+
+```powershell
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -SkipOptional           # jen reasonix
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -InstallOptional claude  # + Claude Code
+```
+
+## 7b. Proč Setup instaluje nástroj, který už mám globálně?
+
+Protože globální instalace není přenositelná. Dřív setup v takovém případě
+instalaci přeskočil a workspace pak po zkopírování na jiný stroj nefungoval
+(Bug #2, opraveno v 1.0.4). Teď se vybrané komponenty vždy instalují do
+`bin/npm-global`; `Portable` se počítá jen pro cesty uvnitř workspace.
+Když chcete globální instalaci opravdu použít, spusťte setup
+s `-UseGlobalIfPresent` — setup to ohlasí jako `WARN`.
+
+Ověření: `Test-Workspace.ps1` (kontrola 16) hlásí `FAIL`, když `Required`
+komponenta `reasonix` není v `bin/npm-global`.
 
 ## 8. Jak spustím workspace z jiné cesty než `C:\portableAI`?
 
@@ -115,8 +137,10 @@ nezávislý — jde jen o proměnné prostředí.
 pwsh -File scripts\Get-AiStackInfo.ps1 -NoBanner
 ```
 
-Sekce `7. AI nástroje` vypíše verze pro node, npm, git a `pwsh` a dostupnost
-jednotlivých agentů.
+Sekce `7. AI nástroje` vypíše verze pro node, npm, git a `pwsh` a pak
+AI komponenty rozdělené podle kategorií (`Required`, `Recommended`,
+`Optional`) včetně toho, jestli jsou v `bin/npm-global` (portable), nebo
+mimo workspace.
 
 ## 17. Proč `Write-Log` zobrazuje DEBUG řádky jen někdy?
 
@@ -155,3 +179,24 @@ pwsh -File scripts\Get-AiStackInfo.ps1   # sekce 6. API
 `env\.env.example` má klíč zakomentovaný schválně. Pokud klíč už máte
 v prostředí (User scope), stačí vzor zkopírovat a nic nevyplňovat — env
 vyhraje. Když klíč v prostředí nemáte, odkomentujte řádek a vyplňte hodnotu.
+
+## 23. Proč dřív selhala instalace rozšíření `pi-reasonix`?
+
+Balíček má `postinstall` skript `npm run build || true`. Ten na Windows
+selže: `tsc` bez `tsconfig.json` (ten v balíčku není) vyvolá nápovědu
+a skončí chybou a `|| true` není platný `cmd` příkaz. Balíček přitom už
+veze předpřipravený `dist/`, takže build není potřeba.
+
+Setup proto rozšíření instaluje s `--ignore-scripts` (nespouštět build)
+a `--legacy-peer-deps` (peer závislosti jsou volné `*` a jinak by npm
+stáhl druhou celou kopii Pi agenta do vnořeného `node_modules`):
+
+```powershell
+npm install -g --prefix bin\npm-global --ignore-scripts --legacy-peer-deps pi-reasonix@1.1.0
+```
+
+Totéž ručně ověříte takto:
+
+```powershell
+Test-Path bin\npm-global\node_modules\pi-reasonix\package.json   # musí být True
+```

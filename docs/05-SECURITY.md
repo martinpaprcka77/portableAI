@@ -87,8 +87,10 @@ Postup:
   krok admin práva nabízí, něco je špatně.
 - **Žádná elevace v launcheru.** `launcher/*.cmd` nikdy nevolá `runas`.
 - **Ověřujte před instalací.** `Setup-DeepSeekStack.ps1` instaluje balíčky
-  z npm; názvy jsou v `$ComponentCatalog` — zkontrolujte je, než spustíte
-  instalaci bez `-WhatIf`.
+  z npm; názvy jsou v katalogu `Get-ComponentCatalog` (`scripts/_common.ps1`) —
+  zkontrolujte je, než spustíte instalaci bez `-WhatIf`. Volitelné rozšíření
+  `pi-reasonix` se instaluje s `--ignore-scripts`, takže se z balíčku
+  nespouští žádný `postinstall` skript.
 - **`-WhatIf` napřed.** Všechny skripty měnící stav podporují `-WhatIf`.
 - **Kontrola po přesunu.** Po zkopírování workspace na jiný stroj spusťte
   `Test-Workspace.ps1`, ať víte, že se nic nerozbilo.

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Provede self-test portable AI workspace.
 .DESCRIPTION
-    Ověří patnáct oblastí workspace a vrátí souhrnný stav PASS nebo FAIL:
+    Ověří šestnáct oblastí workspace a vrátí souhrnný stav PASS nebo FAIL:
 
       1. povinné adresáře existují
       2. povinné soubory existují
@@ -20,6 +20,9 @@
      14. všechny prompty v `prompts/` mají YAML frontmatter s `title`
          a `description`
      15. `DEEPSEEK_API_KEY` je konzistentní mezi prostředím a `.env`
+     16. `Required` komponenty (viz `Get-ComponentCatalog`) jsou
+         v `bin/npm-global`, tedy přenositelné s workspace; ostatní
+         komponenty se ohlásí jako `INFO`, když jsou mimo workspace
 
     S přepínačem -Fix se opraví to, co opravit lze: chybějící adresáře,
     UTF-8 BOM, řádkové koncovky a chybějící git repozitář. Chybějící soubory
@@ -571,7 +574,7 @@ if (-not $Json) {
 }
 
 # --- 1. povinné adresáře ------------------------------------------------------
-Write-Log -Message 'Kontrola 1/15: povinné adresáře' -Level DEBUG
+Write-Log -Message 'Kontrola 1/16: povinné adresáře' -Level DEBUG
 $missingDirectories = @()
 foreach ($directory in $manifest.Directories) {
     if (-not (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $directory) -PathType Container)) {
@@ -602,7 +605,7 @@ else {
 }
 
 # --- 2. povinné soubory -------------------------------------------------------
-Write-Log -Message 'Kontrola 2/15: povinné soubory' -Level DEBUG
+Write-Log -Message 'Kontrola 2/16: povinné soubory' -Level DEBUG
 $missingFiles = @()
 foreach ($file in $manifest.Files) {
     if (-not (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $file) -PathType Leaf)) {
@@ -619,7 +622,7 @@ else {
 }
 
 # --- 3. UTF-8 BOM u .ps1 ------------------------------------------------------
-Write-Log -Message 'Kontrola 3/15: UTF-8 BOM' -Level DEBUG
+Write-Log -Message 'Kontrola 3/16: UTF-8 BOM' -Level DEBUG
 $powerShellFiles = @(Get-TestableFiles -Root $root -Include @('*.ps1'))
 $missingBom = @()
 foreach ($file in $powerShellFiles) {
@@ -645,7 +648,7 @@ else {
 }
 
 # --- 4. PSScriptAnalyzer ------------------------------------------------------
-Write-Log -Message 'Kontrola 4/15: PSScriptAnalyzer' -Level DEBUG
+Write-Log -Message 'Kontrola 4/16: PSScriptAnalyzer' -Level DEBUG
 $analyzerAvailable = [bool](Get-Module -ListAvailable -Name 'PSScriptAnalyzer' | Select-Object -First 1)
 if (-not $analyzerAvailable) {
     Add-CheckResult -Results $checks -Id 'analyzer' -Name 'PSScriptAnalyzer' -Status 'WARN' -Detail 'modul není nainstalovaný - kontrola přeskočena (workspace nic neinstaluje globálně)'
@@ -666,7 +669,7 @@ else {
 }
 
 # --- 5. secrets ---------------------------------------------------------------
-Write-Log -Message 'Kontrola 5/15: secrets' -Level DEBUG
+Write-Log -Message 'Kontrola 5/16: secrets' -Level DEBUG
 $envExamplePath = Join-Path -Path $root -ChildPath '.env.example'
 $gitAvailable = Test-Command -Name 'git'
 $isGitRepo = $false
@@ -698,7 +701,7 @@ else {
 }
 
 # --- 6. Node.js ---------------------------------------------------------------
-Write-Log -Message 'Kontrola 6/15: Node.js' -Level DEBUG
+Write-Log -Message 'Kontrola 6/16: Node.js' -Level DEBUG
 $nodeAvailable = Test-Command -Name 'node'
 $requiredNodeVersion = [version]'22.19'
 if (-not $nodeAvailable) {
@@ -728,7 +731,7 @@ else {
 }
 
 # --- 7. git repozitář ---------------------------------------------------------
-Write-Log -Message 'Kontrola 7/15: git repozitář' -Level DEBUG
+Write-Log -Message 'Kontrola 7/16: git repozitář' -Level DEBUG
 if (-not $gitAvailable) {
     Add-CheckResult -Results $checks -Id 'git' -Name 'Git repozitář' -Status 'FAIL' -Detail 'git není v PATH'
 }
@@ -751,7 +754,7 @@ else {
 }
 
 # --- 8. řádkové koncovky ------------------------------------------------------
-Write-Log -Message 'Kontrola 8/15: řádkové koncovky CRLF' -Level DEBUG
+Write-Log -Message 'Kontrola 8/16: řádkové koncovky CRLF' -Level DEBUG
 $crlfFiles = @($powerShellFiles.FullName)
 $cmdFiles = @(Get-TestableFiles -Root $root -Include @('*.cmd', '*.bat') |
         Select-Object -ExpandProperty FullName)
@@ -781,7 +784,7 @@ else {
 }
 
 # --- 9. LF u .md/.json/.toml --------------------------------------------------
-Write-Log -Message 'Kontrola 9/15: LF u textových souborů' -Level DEBUG
+Write-Log -Message 'Kontrola 9/16: LF u textových souborů' -Level DEBUG
 $lfTargets = @(Get-TestableFiles -Root $root -Include @('*.md', '*.json', '*.toml') |
         Select-Object -ExpandProperty FullName)
 
@@ -809,7 +812,7 @@ else {
 }
 
 # --- 10. komentářová nápověda u .ps1 ------------------------------------------
-Write-Log -Message 'Kontrola 10/15: komentářová nápověda' -Level DEBUG
+Write-Log -Message 'Kontrola 10/16: komentářová nápověda' -Level DEBUG
 $helpProblems = @()
 foreach ($file in $powerShellFiles) {
     $missingSections = @(Test-ScriptCommentHelp -Path $file.FullName)
@@ -826,7 +829,7 @@ else {
 }
 
 # --- 11. relativní odkazy v README --------------------------------------------
-Write-Log -Message 'Kontrola 11/15: relativní odkazy v README' -Level DEBUG
+Write-Log -Message 'Kontrola 11/16: relativní odkazy v README' -Level DEBUG
 $readmePath = Join-Path -Path $root -ChildPath 'README.md'
 $linkProblems = @()
 $checkedLinks = 0
@@ -852,7 +855,7 @@ else {
 }
 
 # --- 12. struktura landing page -----------------------------------------------
-Write-Log -Message 'Kontrola 12/15: struktura landing page' -Level DEBUG
+Write-Log -Message 'Kontrola 12/16: struktura landing page' -Level DEBUG
 $landingPath = Join-Path -Path $root -ChildPath 'landing/index.html'
 if (-not (Test-Path -LiteralPath $landingPath -PathType Leaf)) {
     Add-CheckResult -Results $checks -Id 'landing-html' -Name 'Landing page (HTML)' -Status 'FAIL' -Detail 'soubor landing/index.html nenalezen'
@@ -868,7 +871,7 @@ else {
 }
 
 # --- 13. fáze v METAPROMPT.md -------------------------------------------------
-Write-Log -Message 'Kontrola 13/15: fáze METAPROMPT.md' -Level DEBUG
+Write-Log -Message 'Kontrola 13/16: fáze METAPROMPT.md' -Level DEBUG
 $metapromptPath = Join-Path -Path $root -ChildPath 'METAPROMPT.md'
 $phaseProblems = @()
 
@@ -896,7 +899,7 @@ else {
 }
 
 # --- 14. YAML frontmatter u promptů -------------------------------------------
-Write-Log -Message 'Kontrola 14/15: YAML frontmatter promptů' -Level DEBUG
+Write-Log -Message 'Kontrola 14/16: YAML frontmatter promptů' -Level DEBUG
 $promptDirectory = Join-Path -Path $root -ChildPath 'prompts'
 $frontmatterProblems = @()
 $promptFileCount = 0
@@ -928,7 +931,7 @@ else {
 }
 
 # --- 15. integrita .env -------------------------------------------------------
-Write-Log -Message 'Kontrola 15/15: integrita .env' -Level DEBUG
+Write-Log -Message 'Kontrola 15/16: integrita .env' -Level DEBUG
 $keyEnvScopes = [ordered]@{
     Process = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Process')
     User    = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
@@ -998,6 +1001,44 @@ if ($integrityProblems.Count -eq 0) {
 }
 else {
     Add-CheckResult -Results $checks -Id 'env-integrity' -Name 'Integrita .env' -Status 'WARN' -Detail ($integrityProblems -join '; ')
+}
+
+# --- 16. Required komponenty v workspace --------------------------------------
+Write-Log -Message 'Kontrola 16/16: portabilita komponent' -Level DEBUG
+$componentFindings = @()
+$portabilityProblems = @()
+
+foreach ($component in @(Get-ComponentCatalog)) {
+    $category = [string]$component.Category
+    $detection = Test-Component -Name ([string]$component.Binary) -Binary ([string]$component.Binary) -Root $root -SkipVersion
+
+    if ($detection.Portable) {
+        $componentFindings += ('{0} [{1}]: {2}' -f $component.DisplayName, $category, $detection.Source)
+        continue
+    }
+
+    if ($detection.Found) {
+        $location = ('mimo workspace ({0}: {1})' -f $detection.Source, $detection.Path)
+    }
+    else {
+        $location = 'nenalezeno'
+    }
+
+    if ($category -eq 'Required') {
+        $portabilityProblems += ('{0} ({1}) není v bin/npm-global ({2})' -f $component.DisplayName, $category, $location)
+    }
+    else {
+        # Nepovinné komponenty se jen ohlašují - jejich umístění portabilitu
+        # Required části workspace neohrožuje.
+        $componentFindings += ('{0} [{1}]: INFO {2}' -f $component.DisplayName, $category, $location)
+    }
+}
+
+if ($portabilityProblems.Count -eq 0) {
+    Add-CheckResult -Results $checks -Id 'component-portability' -Name 'Required komponenty v workspace' -Status 'OK' -Detail ($componentFindings -join '; ')
+}
+else {
+    Add-CheckResult -Results $checks -Id 'component-portability' -Name 'Required komponenty v workspace' -Status 'FAIL' -Detail (($portabilityProblems + $componentFindings) -join '; ')
 }
 
 # --- Souhrn -------------------------------------------------------------------

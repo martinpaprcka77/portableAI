@@ -7,6 +7,9 @@
 | `launcher\Start-PortableAI.cmd` | spustí interaktivní menu | dvojklik v Průzkumníku |
 | `pwsh -File launcher\Menu.ps1` | totéž z terminálu | `pwsh -File launcher\Menu.ps1` |
 | `pwsh -File scripts\Setup-DeepSeekStack.ps1` | instalace a konfigurace stacku | `... -SkipInstall` |
+| `Setup-DeepSeekStack.ps1 -SkipOptional` | přeskočí `Recommended` i `Optional` (jen `reasonix`) | `... -SkipOptional` |
+| `Setup-DeepSeekStack.ps1 -InstallOptional X` | doinstaluje vyjmenované `Optional` komponenty | `... -InstallOptional claude,dsh` |
+| `Setup-DeepSeekStack.ps1 -UseGlobalIfPresent` | použije globální instalaci, když existuje | `... -UseGlobalIfPresent` |
 | `pwsh -File scripts\Get-AiStackInfo.ps1` | diagnostický snapshot | `... -NoBanner` |
 | `pwsh -File scripts\Test-Workspace.ps1` | self-test workspace | `... -Fix` |
 | `pwsh -File scripts\Repair-Repo.ps1` | oprava gitu a koncovek | `... -WhatIf` |
@@ -26,7 +29,7 @@
 
 | Příkaz | Co dělá | Příklad |
 | --- | --- | --- |
-| `Test-Workspace.ps1` | 15 kontrol, PASS/FAIL | `pwsh -File scripts\Test-Workspace.ps1` |
+| `Test-Workspace.ps1` | 16 kontrol, PASS/FAIL | `pwsh -File scripts\Test-Workspace.ps1` |
 | `Test-Workspace.ps1 -Fix` | opraví BOM, CRLF, dirs, git | `... -Fix` |
 | `Test-Workspace.ps1 -Fix -WhatIf` | jen ukáže, co by opravil | `... -Fix -WhatIf` |
 | `Test-Workspace.ps1 -Json` | výsledek jako JSON | `... -Json` |
@@ -55,6 +58,8 @@
 | `Import-DotEnv` | načte `.env` do prostředí | `$cfg = Import-DotEnv` |
 | `Get-MaskedValue -Value X` | zamaskuje tajemství | `Get-MaskedValue -Value $env:DEEPSEEK_API_KEY` |
 | `Test-Command -Name 'node'` | ověří dostupnost nástroje | `if (Test-Command 'node') { … }` |
+| `Test-Component -Name 'reasonix'` | najde komponentu v 5 režimech | `(Test-Component -Name 'reasonix').Source` |
+| `Get-ComponentCatalog` | katalog komponent s kategoriemi | `(Get-ComponentCatalog).Category` |
 | `Get-WorkspaceManifest` | co má workspace obsahovat | `(Get-WorkspaceManifest).Files` |
 | `Invoke-ScriptAnalyzer -Path .\scripts` | statická analýza | `Invoke-ScriptAnalyzer -Path .\scripts` |
 

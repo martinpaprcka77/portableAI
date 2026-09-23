@@ -28,11 +28,12 @@ cestami** a přidává nástroje, které stav kdykoli ověří.
 
 | Problém | Řešení ve workspace |
 | --- | --- |
-| Globální instalace a verze | lokální npm prefix v `bin/npm-global` |
+| Globální instalace a verze | lokální npm prefix v `bin/npm-global`; globální instalace se za přenositelnou nepovažuje |
 | Secrets v repu a shellu | `env/.env` v `.gitignore`, maskované výpisy |
 | „Nevím, co je špatně“ | `scripts/Get-AiStackInfo.ps1` (8 sekcí, `-Json`) |
 | „Rozbilo se to“ | `scripts/Repair-Repo.ps1` a `Test-Workspace.ps1 -Fix` |
 | Rozcházející se řádkové koncovky | `.gitattributes` + renormalizace |
+| Nejasná priorita nástrojů | kategorie komponent (`Required`/`Recommended`/`Optional`) v `Get-ComponentCatalog` |
 | Duplikované zadávání agentům | knihovna promptů v `prompts/` |
 | Ztráta know-how | `docs/`, `manual/`, `gists/`, ADR |
 

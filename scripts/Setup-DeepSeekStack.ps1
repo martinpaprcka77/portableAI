@@ -6,13 +6,26 @@
 
       1. příprava adresářů (env, data, bin, logs)
       2. detekce `.env` a jeho vytvoření ze vzoru, pokud chybí
-      3. instalace nástrojů Reasonix, Claude Code, DSH a Pi
+      3. instalace nástrojů Reasonix, Pi, Claude Code a DSH
       4. konfigurace: seed konfiguračních souborů a synchronizace klíčů `.env`
       5. ověření pomocí `Test-Workspace.ps1`
 
     Vše se instaluje do `bin/npm-global` (lokální npm prefix). Skript nikdy
     neinstaluje globálně a nikdy nevyžaduje administrátorská práva, takže
     funguje i po zkopírování workspace na USB disk.
+
+    Komponenty mají kategorie z `Get-ComponentCatalog` (viz `scripts/_common.ps1`):
+
+      Required      - `reasonix`; musí být vždy ve workspace
+      Recommended   - `pi`; instaluje se, pokud není `-SkipOptional`
+      Optional      - `claude`, `dsh`; jen na výslovné vyžádání
+                      (`-InstallOptional`)
+
+    Nalezení nástroje v globálním `PATH` **není** důvod instalaci přeskočit:
+    bez parametrů se každá vybraná komponenta instaluje do `bin/npm-global`,
+    i když je zároveň nainstalovaná globálně (oprava Bug #2 - dřív se
+    instalace přeskočila a workspace pak nefungoval po přesunu na jiný stroj).
+    Kdo chce globální instalaci vědomě použít, zapne `-UseGlobalIfPresent`.
 
     Názvy a verze v `$ComponentCatalog` jsou ověřené proti živému npm registry
     a proti GitHub releases (audit 2026-09-23). Tabulka ověření, alternativní
@@ -29,6 +42,18 @@
     Přeskočí konfiguraci a seed konfiguračních souborů.
 .PARAMETER SkipCheck
     Přeskočí závěrečné ověření pomocí Test-Workspace.ps1.
+.PARAMETER SkipOptional
+    Přeskočí komponenty kategorie `Recommended` (tedy `pi`) i `Optional`.
+    `reasonix` (`Required`) se instaluje vždy.
+.PARAMETER InstallOptional
+    Názvy komponent kategorie `Optional`, které se mají přesto nainstalovat.
+    Přijímá `DisplayName`, `Name`, `Binary` i `Package` (bez ohledu na
+    velikost písmen), např. `-InstallOptional claude,dsh`.
+.PARAMETER UseGlobalIfPresent
+    Když je komponenta nalezena mimo workspace (globální npm nebo `PATH`),
+    použije se tato globální instalace a jen se to ohlásí jako `WARN`.
+    Bez tohoto přepínače se komponenta vždy doinstaluje do `bin/npm-global`,
+    protože globální instalace není přenositelná.
 .PARAMETER LogFile
     Cesta k log souboru. Pokud není zadán, použije se
     `logs/setup-YYYYMMDD-HHmm.log`.
@@ -38,6 +63,10 @@
     .\Setup-DeepSeekStack.ps1 -WhatIf
 .EXAMPLE
     .\Setup-DeepSeekStack.ps1 -SkipInstall -SkipCheck
+.EXAMPLE
+    .\Setup-DeepSeekStack.ps1 -SkipOptional
+.EXAMPLE
+    .\Setup-DeepSeekStack.ps1 -InstallOptional claude
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
@@ -49,6 +78,15 @@ param(
 
     [Parameter()]
     [switch]$SkipCheck,
+
+    [Parameter()]
+    [switch]$SkipOptional,
+
+    [Parameter()]
+    [string[]]$InstallOptional = @(),
+
+    [Parameter()]
+    [switch]$UseGlobalIfPresent,
 
     [Parameter()]
     [string]$LogFile
@@ -162,6 +200,9 @@ function Resolve-ComponentShim {
         (`<dir>/<binary>.cmd` na Windows). Funkce zkusí i POSIX variantu
         `<dir>/bin/<binary>` a PowerShell variantu `<dir>/<binary>.ps1`,
         aby fungovala i po přesunu workspace na jiný systém.
+
+        Vlastní hledání deleguje na `Get-ComponentShimPath` v `_common.ps1`,
+        aby stejný seznam kandidátů používala i detekce `Test-Component`.
     .PARAMETER Component
         Záznam z `$ComponentCatalog`.
     .PARAMETER NpmPrefix
@@ -181,25 +222,7 @@ function Resolve-ComponentShim {
         [string]$NpmPrefix
     )
 
-    if (-not (Test-Path -LiteralPath $NpmPrefix -PathType Container)) {
-        return $null
-    }
-
-    $candidates = @(
-        (Join-Path -Path $NpmPrefix -ChildPath ('{0}.cmd' -f $Component.Binary))
-        (Join-Path -Path $NpmPrefix -ChildPath ('{0}.exe' -f $Component.Binary))
-        (Join-Path -Path $NpmPrefix -ChildPath ('{0}.ps1' -f $Component.Binary))
-        (Join-Path -Path $NpmPrefix -ChildPath $Component.Binary)
-        (Join-Path -Path $NpmPrefix -ChildPath ('bin/{0}' -f $Component.Binary))
-    )
-
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-            return $candidate
-        }
-    }
-
-    return $null
+    return Get-ComponentShimPath -Directory $NpmPrefix -Binary ([string]$Component.Binary)
 }
 
 function Install-NpmComponent {
@@ -218,6 +241,9 @@ function Install-NpmComponent {
         Záznam z `$ComponentCatalog`.
     .PARAMETER NpmPrefix
         Absolutní cesta k lokálnímu npm prefixu (`bin/npm-global`).
+    .PARAMETER AdditionalArgs
+        Další argumenty pro `npm install` (např. `--ignore-scripts`
+        nebo `--legacy-peer-deps`) vložené před názvem balíčku.
     .OUTPUTS
         System.Boolean - $true, když npm skončil s návratovým kódem 0
     .EXAMPLE
@@ -230,7 +256,10 @@ function Install-NpmComponent {
         [psobject]$Component,
 
         [Parameter(Mandatory = $true)]
-        [string]$NpmPrefix
+        [string]$NpmPrefix,
+
+        [Parameter()]
+        [string[]]$AdditionalArgs = @()
     )
 
     if (-not (Test-Path -LiteralPath $NpmPrefix -PathType Container)) {
@@ -240,7 +269,15 @@ function Install-NpmComponent {
     $target = Get-ComponentInstallTarget -Component $Component
     Write-Log -Message ('Instaluji {0} ({1}) do bin/npm-global...' -f $Component.Name, $target) -Level STEP
 
-    & npm install -g --prefix $NpmPrefix --no-fund --no-audit $target 2>&1 |
+    $npmArguments = @('install', '-g', '--prefix', $NpmPrefix, '--no-fund', '--no-audit')
+    foreach ($extraArgument in @($AdditionalArgs)) {
+        if (-not [string]::IsNullOrWhiteSpace($extraArgument)) {
+            $npmArguments += $extraArgument
+        }
+    }
+    $npmArguments += $target
+
+    & npm @npmArguments 2>&1 |
         ForEach-Object { Write-Log -Message ('npm: {0}' -f [string]$_) -Level DEBUG }
 
     return ($LASTEXITCODE -eq 0)
@@ -394,73 +431,12 @@ function Test-SwitchEnabled {
 # -----------------------------------------------------------------------------
 #  Katalog komponent.
 #
-#  Názvy a verze ověřené proti npm registry a GitHub releases 2026-09-23.
-#  Zdroj pravdy pro člověka je tabulka v docs/02-CONFIG.md; tento katalog je
-#  zdroj pravdy pro stroj. `Source` rozlišuje npm / github / winget.
+#  Definice je v `Get-ComponentCatalog` ve `scripts/_common.ps1`, aby stejná
+#  data (kategorie, verze, binárky) používal setup, diagnostika i self-test.
+#  Zdroj pravdy pro člověka je tabulka v docs/02-CONFIG.md.
 # -----------------------------------------------------------------------------
-$ComponentCatalog = @(
-    [pscustomobject]@{
-        Name        = 'Reasonix'
-        Package     = 'reasonix'
-        Version     = '1.38.11'
-        Binary      = 'reasonix'
-        Source      = 'npm'
-        SourceUrl   = 'https://www.npmjs.com/package/reasonix'
-        Portable    = $true
-        Install     = 'npm install -g --prefix bin/npm-global reasonix@1.38.11'
-        Verify      = '& "bin/npm-global/reasonix.cmd" --version'
-        VerifyArgs  = @('--version')
-        Description = 'DeepSeek-native coding agent (cache-first, terminal-first)'
-        AltSources  = @(
-            'winget install --id ESEngine.ReasonixCLI --exact (POZOR: user-scope, NENI portable)'
-            'GitHub releases (offline instalace): https://github.com/esengine/DeepSeek-Reasonix/releases/download/v1.38.11/reasonix-windows-amd64.zip + SHA256SUMS'
-        )
-    }
-    [pscustomobject]@{
-        Name        = 'Claude Code'
-        Package     = '@anthropic-ai/claude-code'
-        Version     = '2.1.280'
-        Binary      = 'claude'
-        Source      = 'npm'
-        SourceUrl   = 'https://www.npmjs.com/package/@anthropic-ai/claude-code'
-        Portable    = $true
-        Install     = 'npm install -g --prefix bin/npm-global @anthropic-ai/claude-code@2.1.280'
-        Verify      = '& "bin/npm-global/claude.cmd" --version'
-        VerifyArgs  = @('--version')
-        Description = 'Anthropic CLI nad DeepSeek backendem (ANTHROPIC_BASE_URL)'
-        AltSources  = @()
-    }
-    [pscustomobject]@{
-        Name        = 'DeepSeek Harness'
-        Package     = '@deepseek-ai/dsh'
-        Version     = '0.1.5-rc.3'
-        Binary      = 'dsh'
-        Source      = 'npm'
-        SourceUrl   = 'https://www.npmjs.com/package/@deepseek-ai/dsh'
-        Portable    = $true
-        Install     = 'npm install -g --prefix bin/npm-global @deepseek-ai/dsh@0.1.5-rc.3'
-        Verify      = '& "bin/npm-global/dsh.cmd" --version'
-        VerifyArgs  = @('--version')
-        Description = 'DeepSeek Harness CLI (profile boot, plugins, browser UI)'
-        AltSources  = @()
-    }
-    [pscustomobject]@{
-        Name         = 'Pi'
-        Package      = '@earendil-works/pi-coding-agent'
-        Version      = '0.87.1'
-        Binary       = 'pi'
-        Source       = 'npm'
-        SourceUrl    = 'https://www.npmjs.com/package/@earendil-works/pi-coding-agent'
-        Portable     = $true
-        Install      = 'npm install -g --prefix bin/npm-global @earendil-works/pi-coding-agent@0.87.1'
-        Verify       = '& "bin/npm-global/pi.cmd" --version'
-        VerifyArgs   = @('--version')
-        Description  = 'Pi coding agent (read, bash, edit, write + session management)'
-        AltSources   = @()
-        Extension    = 'pi-reasonix@1.1.0'
-        ExtensionVar = 'PORTABLEAI_PI_EXTENSIONS'
-    }
-)
+
+$ComponentCatalog = Get-ComponentCatalog
 
 $root = Get-WorkspaceRoot
 $started = Get-Date
@@ -584,33 +560,74 @@ else {
         Write-Log -Message 'Instalace přeskočena (-SkipInstall). Ověřuji jen to, co už v bin/npm-global je.' -Level WARN
     }
 
+    $requestedOptional = @()
+    foreach ($requestedName in @($InstallOptional)) {
+        $normalizedName = ([string]$requestedName).Trim()
+        if ($normalizedName) {
+            $requestedOptional += $normalizedName.ToLowerInvariant()
+        }
+    }
+
+    $piComponentSelected = $false
+
     foreach ($component in $ComponentCatalog) {
-        $shim = Resolve-ComponentShim -Component $component -NpmPrefix $npmPrefix
+        $category = [string]$component.Category
         $installAttempted = $false
 
-        if ($shim) {
-            Write-Log -Message ('{0}: nalezeno v bin/npm-global - instalace přeskočena.' -f $component.Name) -Level OK
+        # Výběr podle kategorie: Required vždy, Recommended bez -SkipOptional,
+        # Optional jen když ho uživatel vyjmenoval v -InstallOptional.
+        $selected = $true
+        if ($category -eq 'Recommended') {
+            $selected = -not $SkipOptional
+        }
+        elseif ($category -eq 'Optional') {
+            $aliases = @($component.DisplayName, $component.Name, $component.Binary, $component.Package) |
+                ForEach-Object { ([string]$_).Trim().ToLowerInvariant() }
+            $selected = @($aliases | Where-Object { $requestedOptional -contains $_ }).Count -gt 0
+        }
+
+        if ($component.PSObject.Properties.Name -contains 'Extension') {
+            $piComponentSelected = [bool]$selected
+        }
+
+        # Nalezení nástroje mimo workspace NENÍ důvod instalaci přeskočit -
+        # workspace musí být soběstačný i po přesunu na jiný stroj (Bug #2).
+        $detection = Test-Component -Name ([string]$component.Binary) -Root $root -SkipVersion
+        $installNow = $false
+
+        if ($detection.Portable) {
+            Write-Log -Message ('{0} [{1}]: nalezeno v workspace ({2}) - instalace přeskočena.' -f $component.DisplayName, $category, $detection.Source) -Level OK
+        }
+        elseif (-not $selected) {
+            Write-Log -Message ('{0} [{1}]: kategorie není vyžádána (-SkipOptional / -InstallOptional) - přeskakuji.' -f $component.DisplayName, $category) -Level INFO
+        }
+        elseif ($detection.Found -and $UseGlobalIfPresent) {
+            Write-Log -Message ('{0} [{1}]: použita globální instalace ({2}: {3}) - NENÍ přenositelná.' -f $component.DisplayName, $category, $detection.Source, $detection.Path) -Level WARN
         }
         elseif ($SkipInstall) {
-            Write-Log -Message ('{0}: není nainstalováno a -SkipInstall je aktivní.' -f $component.Name) -Level DEBUG
+            Write-Log -Message ('{0} [{1}]: není ve workspace a -SkipInstall je aktivní.' -f $component.DisplayName, $category) -Level DEBUG
         }
-        elseif (Test-Command -Name $component.Binary) {
-            Write-Log -Message ('{0}: nalezeno v PATH mimo workspace - instalace přeskočena.' -f $component.Name) -Level WARN
+        else {
+            if ($detection.Found) {
+                Write-Log -Message ('{0} [{1}]: nalezeno mimo workspace ({2}: {3}) - instaluji do bin/npm-global.' -f $component.DisplayName, $category, $detection.Source, $detection.Path) -Level WARN
+            }
+            $installNow = $true
         }
-        elseif ($PSCmdlet.ShouldProcess($component.Package, $component.Install)) {
+
+        if ($installNow -and $PSCmdlet.ShouldProcess($component.Package, $component.Install)) {
             $installAttempted = $true
             if (Install-NpmComponent -Component $component -NpmPrefix $npmPrefix) {
-                Write-Log -Message ('{0}: nainstalováno do bin/npm-global.' -f $component.Name) -Level OK
+                Write-Log -Message ('{0}: nainstalováno do bin/npm-global.' -f $component.DisplayName) -Level OK
             }
             else {
-                Write-Log -Message ('{0}: instalace selhala (npm exit != 0). Pokračuji s ostatními.' -f $component.Name) -Level WARN
+                Write-Log -Message ('{0}: instalace selhala (npm exit != 0). Pokračuji s ostatními.' -f $component.DisplayName) -Level WARN
                 $problems++
             }
         }
 
         $verification = Test-ComponentBinary -Component $component -NpmPrefix $npmPrefix -MissingIsFailure:$installAttempted
         [void]$verifyResults.Add($verification)
-        Write-Log -Message ('{0} verify [{1}]: {2}' -f $component.Name, $verification.Status, $verification.Detail) -Level $verification.LogLevel
+        Write-Log -Message ('{0} verify [{1}]: {2}' -f $component.DisplayName, $verification.Status, $verification.Detail) -Level $verification.LogLevel
         if ($verification.Status -eq 'FAIL') {
             $problems++
         }
@@ -629,9 +646,14 @@ else {
         }
     }
 
-    if ($piExtension -and $piExtensionVar) {
+    if ($piExtension -and $piExtensionVar -and -not $piComponentSelected) {
+        Write-Log -Message ('Volitelné rozšíření {0}: komponenta Pi není vybrána (-SkipOptional) - přeskakuji.' -f $piExtension) -Level INFO
+    }
+    elseif ($piExtension -and $piExtensionVar) {
         $extensionWant = Test-SwitchEnabled -Value ([Environment]::GetEnvironmentVariable($piExtensionVar))
-        $extensionInstalled = Test-Path -LiteralPath (Join-Path -Path $npmPrefix -ChildPath ('node_modules/{0}' -f ($piExtension -split '@')[0])) -PathType Container
+        # Přítomnost adresáře nestačí - neúspěšná instalace po sobě zanechá
+        # prázdný skeleton. Rozhoduje až `package.json` balíčku.
+        $extensionInstalled = Test-Path -LiteralPath (Join-Path -Path $npmPrefix -ChildPath ('node_modules/{0}/package.json' -f ($piExtension -split '@')[0])) -PathType Leaf
 
         if (-not $extensionWant) {
             Write-Log -Message ('Volitelné rozšíření {0} vypnuto ({1} není zapnuto).' -f $piExtension, $piExtensionVar) -Level INFO
@@ -642,8 +664,15 @@ else {
         elseif ($SkipInstall) {
             Write-Log -Message ('Volitelné rozšíření {0}: není nainstalováno a -SkipInstall je aktivní.' -f $piExtension) -Level DEBUG
         }
-        elseif ($PSCmdlet.ShouldProcess($piExtension, ('npm install -g --prefix bin/npm-global {0}' -f $piExtension))) {
-            if (Install-NpmComponent -Component ([pscustomobject]@{ Name = 'Pi rozšíření'; Package = ($piExtension -split '@')[0]; Version = ($piExtension -split '@')[1] }) -NpmPrefix $npmPrefix) {
+        elseif ($PSCmdlet.ShouldProcess($piExtension, ('npm install -g --prefix bin/npm-global --ignore-scripts --legacy-peer-deps {0}' -f $piExtension))) {
+            # `--ignore-scripts`: pi-reasonix má postinstall `npm run build || true`,
+            # který na Windows selže (tsc bez tsconfig.json, `|| true` není cmd
+            # příkaz) - přestože balíček už veze předpřipravený `dist/`.
+            # `--legacy-peer-deps`: peer závislosti jsou volné (`*`) a npm by kvůli
+            # nim stahoval druhou celou kopii Pi agenta do vnořeného node_modules.
+            # Rozšíření na ně v runtime nesahá (importuje jen relativní cesty).
+            $extensionArguments = @('--ignore-scripts', '--legacy-peer-deps')
+            if (Install-NpmComponent -Component ([pscustomobject]@{ Name = 'Pi rozšíření'; Package = ($piExtension -split '@')[0]; Version = ($piExtension -split '@')[1] }) -NpmPrefix $npmPrefix -AdditionalArgs $extensionArguments) {
                 Write-Log -Message ('Volitelné rozšíření {0}: nainstalováno.' -f $piExtension) -Level OK
             }
             else {

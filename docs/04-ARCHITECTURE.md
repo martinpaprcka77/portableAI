@@ -53,11 +53,11 @@ launcher ──► scripts ──► logs/*.log  (každý běh zapisuje, co děl
 
 | Komponenta | Odpovědnost | Mění stav? |
 | --- | --- | --- |
-| `_common.ps1` | sdílené funkce, manifest, logování | ne |
+| `_common.ps1` | sdílené funkce, manifest, katalog komponent, logování | ne |
 | `Setup-DeepSeekStack.ps1` | instalace nástrojů a seed konfigurace | ano (`-WhatIf`) |
 | `Get-AiStackInfo.ps1` | diagnostický snapshot | ne |
 | `Repair-Repo.ps1` | git atributy, koncovky, untrack | ano (`-WhatIf`) |
-| `Test-Workspace.ps1` | self-test patnácti oblastí | jen s `-Fix` |
+| `Test-Workspace.ps1` | self-test šestnácti oblastí | jen s `-Fix` |
 | `Menu.ps1` | interaktivní rozcestník | ne |
 
 ## Rozhodovací pravidla
@@ -70,8 +70,14 @@ launcher ──► scripts ──► logs/*.log  (každý běh zapisuje, co děl
    bez BOM + LF. Důvod: PowerShell potřebuje BOM kvůli diakritice, git a
    Markdown naopak LF.
 4. **Nic se neinstaluje globálně.** Lokální npm prefix `bin/npm-global` drží
-   nástroje uvnitř workspace, takže přežijí reinstalaci systému.
-5. **Logování je opt-in do souboru.** Diagnostika nezapisuje do `logs/`, pokud
+   nástroje uvnitř workspace, takže přežijí reinstalaci systému. Nalezení
+   nástroje v globálním `PATH` proto není důvod instalaci vynechat
+   (`-UseGlobalIfPresent` je jen vědomá výjimka).
+5. **Kategorie komponent** (`Get-ComponentCatalog`) určují, co je povinné:
+   `Required` (`reasonix`) musí být vždy v `bin/npm-global`, `Recommended`
+   (`pi`) se instaluje standardně, `Optional` (`claude`, `dsh`) jen na
+   vyžádání. Stejná data čte setup, diagnostika i self-test.
+6. **Logování je opt-in do souboru.** Diagnostika nezapisuje do `logs/`, pokud
    jí to neřeknete přes `-LogFile`.
 
 ## Životní cyklus

@@ -21,16 +21,19 @@ Jsi AI coding agent v portable workspace na `C:\portableAI\`.
 
 ## Dostupné nástroje
 
-Všechny nástroje patří do `bin/npm-global` (nikdy globálně).
-`Setup-DeepSeekStack.ps1` instaluje všechny čtyři najednou — když jedna
-instalace selže, jen to ohlásí a pokračuje s ostatními. `reasonix` je
-primární agent workspace, ostatní jsou volitelné. Volitelné rozšíření
+Všechny nástroje patří do `bin/npm-global` (nikdy globálně). Když je nástroj
+nalezený jen v globálním `PATH`, setup ho do workspace **přesto** doinstaluje —
+globální instalace není přenositelná. `Setup-DeepSeekStack.ps1` vybírá
+komponenty podle kategorií z `Get-ComponentCatalog` (`scripts/_common.ps1`):
+`Required` (`reasonix`) vždy, `Recommended` (`pi`) standardně, `Optional`
+(`claude`, `dsh`) jen na vyžádání přes `-InstallOptional`. Když jedna instalace
+selže, setup to jen ohlásí a pokračuje s ostatními. Volitelné rozšíření
 `pi-reasonix` zapíná `PORTABLEAI_PI_EXTENSIONS=1` v `env/.env`.
 
-- `reasonix` — DeepSeek-native coding agent (primární)
-- `claude` — Claude Code CLI (DeepSeek backend)
-- `dsh` — DeepSeek Harness CLI
-- `pi` — Pi coding agent
+- `reasonix` — DeepSeek-native coding agent (primární, `Required`)
+- `pi` — Pi coding agent (`Recommended`)
+- `claude` — Claude Code CLI, DeepSeek backend (`Optional`)
+- `dsh` — DeepSeek Harness CLI (`Optional`)
 
 ## Struktura
 

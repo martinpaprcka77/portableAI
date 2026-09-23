@@ -117,16 +117,17 @@ Nepodporované: víceřádkové hodnoty a escape sekvence. Držte se jednoduché
 ## Ověřené balíčky
 
 Audit proběhl 2026-09-23 přímo proti živému npm registry (`npm view <pkg> version`)
-a proti GitHub API (`/repos/esengine/DeepSeek-Reasonix/releases`). Verze
-v `$ComponentCatalog` v `scripts/Setup-DeepSeekStack.ps1` odpovídají této tabulce.
+a proti GitHub API (`/repos/esengine/DeepSeek-Reasonix/releases`). Definici
+katalogu drží `Get-ComponentCatalog` ve `scripts/_common.ps1` (setup si ji
+načítá do `$ComponentCatalog`); hodnoty odpovídají této tabulce.
 
-| Komponenta | Balíček (skutečný název) | Verze | Zdroj | Ověřovací příkaz |
-| --- | --- | --- | --- | --- |
-| Reasonix | `reasonix` | 1.38.11 | npm | `reasonix --version` |
-| Claude Code | `@anthropic-ai/claude-code` | 2.1.280 | npm | `claude --version` |
-| DeepSeek Harness | `@deepseek-ai/dsh` | 0.1.5-rc.3 | npm | `dsh --version` |
-| Pi | `@earendil-works/pi-coding-agent` | 0.87.1 | npm | `pi --version` |
-| Pi rozšíření (volitelné) | `pi-reasonix` | 1.1.0 | npm | bez binárky — načítá ho Pi |
+| Komponenta | Kategorie | Balíček (skutečný název) | Verze | Zdroj | Ověřovací příkaz |
+| --- | --- | --- | --- | --- | --- |
+| Reasonix | Required | `reasonix` | 1.38.11 | npm | `reasonix --version` |
+| Pi | Recommended | `@earendil-works/pi-coding-agent` | 0.87.1 | npm | `pi --version` |
+| Claude Code | Optional | `@anthropic-ai/claude-code` | 2.1.280 | npm | `claude --version` |
+| DeepSeek Harness | Optional | `@deepseek-ai/dsh` | 0.1.5-rc.3 | npm | `dsh --version` |
+| Pi rozšíření (volitelné) | — | `pi-reasonix` | 1.1.0 | npm | bez binárky — načítá ho Pi |
 
 Jména, která jsou v oběhu, ale **nejsou** správná, a proč:
 
@@ -149,6 +150,53 @@ kvůli přenositelnosti; ostatní cesty jsou zdokumentované pro offline instala
 | winget (desktop) | `winget install --id ESEngine.ReasonixDesktop --exact` | desktop aplikace, ne CLI |
 | GitHub release (CLI) | `reasonix-windows-amd64.zip` z tagu `v1.38.11` | pro offline instalaci; release obsahuje i `SHA256SUMS` |
 | GitHub release (desktop) | `Reasonix-windows-amd64.zip` z tagu `desktop-v1.38.11` | ~223 MB, desktop aplikace |
+
+## Kategorie komponent a výběr instalace
+
+Každá komponenta má v katalogu `Category`, které určuje, kdy ji setup
+instaluje:
+
+| Kategorie | Komponenty | Kdy se instaluje |
+| --- | --- | --- |
+| `Required` | `reasonix` | vždy |
+| `Recommended` | `pi` | vždy, kromě `-SkipOptional` |
+| `Optional` | `claude`, `dsh` | jen když je jmenovitě vyžádáte v `-InstallOptional` |
+
+`-InstallOptional` přijímá `DisplayName`, `Name`, `Binary` i `Package`
+(bez ohledu na velikost písmen):
+
+```powershell
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -InstallOptional claude,dsh
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -SkipOptional          # jen reasonix
+```
+
+### Kde se komponenta hledá
+
+`Test-Component` (`scripts/_common.ps1`) prohledá pět režimů a vrací `Found`,
+`Source`, `Path`, `Version`, `Portable` a `MultipleFound`. Vítězí první zásah
+v tomto pořadí:
+
+| Pořadí | `Source` | Cesta |
+| --- | --- | --- |
+| 1 | `workspace` | `<root>/bin/npm-global/<binárka>.cmd` |
+| 2 | `workspace-local` | `<root>/node_modules/.bin/<binárka>.cmd` |
+| 3 | `global-npm` | `%APPDATA%\npm\<binárka>.cmd` |
+| 4 | `system` | `Get-Command <binárka>` |
+| 5 | `none` | nenalezeno |
+
+`Portable` je `$true` jen pro `workspace` a `workspace-local`, tedy pro cesty
+uvnitř workspace. Setup se podle toho rozhoduje:
+
+1. `Portable` → hotovo, instalace se přeskočí.
+2. Nalezeno mimo workspace → **instaluje se do `bin/npm-global`**; globální
+   instalace se za přenositelnou nepovažuje. S `-UseGlobalIfPresent` se místo
+   toho použije globální instalace a ohlásí se `WARN`.
+3. Nenalezeno → instaluje se podle kategorie (tabulka výše).
+
+Nalezení nástroje v globálním `PATH` tedy **nikdy** není důvod instalaci do
+workspace vynechat. Stav hlídače hlásí `Get-AiStackInfo.ps1` v sekci
+`7. AI nástroje` (rozdělená podle kategorií) a `Test-Workspace.ps1`
+v kontrole 16 (`Required` komponenty v workspace).
 
 ## Lokální npm prefix
 

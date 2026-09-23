@@ -58,7 +58,7 @@ použitím vyplníte. Hodí se pro opakující se zadání.
 | Co | Hodnota |
 | --- | --- |
 | Datum poslední revize | 2026-09-23 |
-| Revidovaná verze workspace | 1.0.3 |
+| Revidovaná verze workspace | 1.0.4 |
 | Počet souborů | 11 (7 promptů + tento přehled + 3 šablony) |
 | Povinný frontmatter | `title` a `description` |
 | Nadřazený prompt | `00-system.md` — platí pro všechny ostatní |

@@ -47,10 +47,15 @@ Zvolte `[1]`. Setup:
 - nakonfiguruje Reasonix a Claude Code,
 - spustí ověření.
 
-Chcete-li nejdřív vidět, co by se změnilo:
+Komponenty mají kategorie: `reasonix` je `Required` (vždy se instaluje),
+`pi` je `Recommended`, `claude` a `dsh` jsou `Optional` (jen na vyžádání).
+Nástroj nalezený v globálním `PATH` se **přesto** nainstaluje do workspace,
+aby workspace fungoval i po přesunu na jiný stroj.
 
 ```powershell
-pwsh -File scripts\Setup-DeepSeekStack.ps1 -WhatIf
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -WhatIf                # jen plán
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -SkipOptional          # jen reasonix
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -InstallOptional dsh   # + DSH
 ```
 
 ## Minuta 3 — API klíč
@@ -132,4 +137,5 @@ Teď víte, jak workspace spustit, nakonfigurovat a ověřit. Dál:
 | `pwsh` není rozpoznán | použijte `Start-PortableAI.cmd`, který má fallback na `powershell.exe` |
 | Rozbitá diakritika | `pwsh -File scripts\Repair-Repo.ps1` |
 | `Test-Workspace` hlásí FAIL | `pwsh -File scripts\Test-Workspace.ps1 -Fix` |
-| Setup hlásí `npm exit 1` | zkontrolujte síť a názvy balíčků v `$ComponentCatalog` |
+| Setup hlásí `npm exit 1` | zkontrolujte síť a názvy balíčků v `Get-ComponentCatalog` (`scripts/_common.ps1`) |
+| `reasonix` není ve workspace | `pwsh -File scripts\Setup-DeepSeekStack.ps1` (kontrola 16 v self-testu) |

@@ -68,6 +68,29 @@ Menu nabídne:
 
 Nejdřív zvolte `[1] Setup` — teprve pak má smysl diagnostika.
 
+### Co Setup instaluje
+
+Komponenty mají kategorie (viz [02-CONFIG.md](02-CONFIG.md), sekce
+„Kategorie komponent a výběr instalace“):
+
+| Kategorie | Komponenty | Kdy se instaluje |
+| --- | --- | --- |
+| Required | `reasonix` | vždy |
+| Recommended | `pi` | vždy, kromě `-SkipOptional` |
+| Optional | `claude`, `dsh` | jen s `-InstallOptional <jméno>` |
+
+Vše se instaluje do `bin/npm-global`. Když je nástroj nalezený jen
+v globálním `PATH` (typicky `%APPDATA%\npm`), **instalace do workspace se
+přesto provede** — jinak by workspace po přesunu na jiný stroj nefungoval.
+Kdo chce globální instalaci vědomě použít, přidá `-UseGlobalIfPresent`.
+
+```powershell
+pwsh -File scripts\Setup-DeepSeekStack.ps1                  # reasonix + pi
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -SkipOptional     # jen reasonix
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -InstallOptional claude,dsh
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -WhatIf           # jen plán
+```
+
 ## 4. Konfigurace klíče
 
 1. Setup při prvním běhu vytvoří `env\.env` ze vzoru `env\.env.example`.
@@ -84,8 +107,16 @@ pwsh -File scripts\Get-AiStackInfo.ps1
 ## 5. Ověření instalace
 
 ```powershell
-pwsh -File scripts\Test-Workspace.ps1        # očekáváno: WORKSPACE TEST: PASS
+pwsh -File scripts\Test-Workspace.ps1        # očekáváno: WORKSPACE TEST: PASS (16 kontrol)
 pwsh -File scripts\Get-AiStackInfo.ps1       # očekáváno: CELKOVÝ STAV: OK
+```
+
+Kontrola 16 ověřuje, že `Required` komponenta `reasonix` je v `bin/npm-global`
+(tedy přenositelná s workspace). Když hlásí `FAIL`, doinstalujte ji:
+
+```powershell
+pwsh -File scripts\Setup-DeepSeekStack.ps1 -WhatIf   # co se nainstaluje
+pwsh -File scripts\Setup-DeepSeekStack.ps1           # proveď instalaci
 ```
 
 Když self-test hlásí `FAIL`, spusťte:

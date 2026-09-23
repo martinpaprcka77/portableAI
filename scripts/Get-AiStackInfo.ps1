@@ -351,26 +351,22 @@ $report['6. API'] = $apiSection
 Write-Log -Message 'Sekce 7/8: AI nástroje' -Level DEBUG
 
 $toolsSection = [ordered]@{}
-$toolCandidates = [ordered]@{
-    'node'      = $true
-    'npm'       = $true
-    'npx'       = $true
-    'git'       = $true
-    'pwsh'      = $true
+$baseToolCandidates = [ordered]@{
+    'node'       = $true
+    'npm'        = $true
+    'npx'        = $true
+    'git'        = $true
+    'pwsh'       = $true
     'powershell' = $false
-    'reasonix'  = $false
-    'claude'    = $false
-    'dsh'       = $false
-    'pi'        = $false
 }
 
 $nodeAvailable = Test-Command -Name 'node'
 $gitAvailable = Test-Command -Name 'git'
 
-foreach ($tool in $toolCandidates.Keys) {
+foreach ($tool in $baseToolCandidates.Keys) {
     $present = Test-Command -Name $tool
     $value = if ($present) { 'nalezen' } else { 'nenalezen' }
-    if ($present -and $toolCandidates[$tool]) {
+    if ($present -and $baseToolCandidates[$tool]) {
         $value = Get-ToolVersion -Name $tool
     }
 
@@ -378,14 +374,59 @@ foreach ($tool in $toolCandidates.Keys) {
     if ($present) {
         $status = 'OK'
     }
-    elseif ($tool -in @('reasonix', 'claude', 'dsh', 'pi')) {
-        $status = 'WARN'
-    }
     elseif ($tool -in @('node', 'npm', 'git')) {
         $status = 'FAIL'
     }
 
     Add-ReportEntry -Section $toolsSection -Name $tool -Status $status -Value $value
+}
+
+# AI komponenty rozdělené podle kategorií (Get-ComponentCatalog):
+# Required mimo bin/npm-global je WARN, chybějící Required je FAIL,
+# chybějící Recommended je WARN a Optional se hlásí jen jako INFO.
+$missingRequiredComponents = @()
+$componentCatalog = @(Get-ComponentCatalog)
+
+foreach ($category in @('Required', 'Recommended', 'Optional')) {
+    $categoryComponents = @($componentCatalog | Where-Object { $_.Category -eq $category } | Sort-Object -Property Name)
+    if ($categoryComponents.Count -eq 0) {
+        continue
+    }
+
+    Add-ReportEntry -Section $toolsSection -Name $category -Status 'INFO' -Value (($categoryComponents | ForEach-Object { $_.DisplayName }) -join ', ')
+
+    foreach ($component in $categoryComponents) {
+        $detection = Test-Component -Name ([string]$component.Binary) -Binary ([string]$component.Binary)
+        $entryName = '{0} ({1})' -f $component.DisplayName, $component.Binary
+        $version = [string]$detection.Version
+        if (-not $version) {
+            $version = 'neznámá'
+        }
+
+        if ($detection.Portable) {
+            Add-ReportEntry -Section $toolsSection -Name $entryName -Status 'OK' -Value ('{0} | bin/npm-global ({1}, portable)' -f $version, $detection.Source)
+            continue
+        }
+
+        $status = 'INFO'
+        if ($category -eq 'Required') {
+            $status = 'WARN'
+            $missingRequiredComponents += $component.DisplayName
+        }
+
+        if ($detection.Found) {
+            Add-ReportEntry -Section $toolsSection -Name $entryName -Status $status -Value ('{0} | mimo workspace ({1}: {2}) - NENÍ portable' -f $version, $detection.Source, $detection.Path)
+        }
+        else {
+            if ($category -eq 'Required') {
+                $status = 'FAIL'
+            }
+            elseif ($category -eq 'Recommended') {
+                $status = 'WARN'
+            }
+            Add-ReportEntry -Section $toolsSection -Name $entryName -Status $status -Value 'nenalezeno - spusťte Setup-DeepSeekStack.ps1'
+        }
+    }
 }
 $report['7. AI nástroje'] = $toolsSection
 
@@ -431,6 +472,9 @@ if (-not $apiKeySet) {
 }
 if ($missingDirectories.Count + $missingFiles.Count -gt 0) {
     Add-ReportEntry -Section $doctorSection -Name 'Doporučení' -Status 'FAIL' -Value 'Chybí část workspace. Spusťte: scripts\Test-Workspace.ps1 -Fix'
+}
+if ($missingRequiredComponents.Count -gt 0) {
+    Add-ReportEntry -Section $doctorSection -Name 'Doporučení' -Status 'WARN' -Value ('Required komponenta není v bin/npm-global: {0}. Spusťte: scripts\Setup-DeepSeekStack.ps1' -f ($missingRequiredComponents -join ', '))
 }
 if ($counts.WARN -eq 0 -and $counts.FAIL -eq 0) {
     Add-ReportEntry -Section $doctorSection -Name 'Doporučení' -Status 'OK' -Value 'Žádné problémy. Workspace je připraven.'

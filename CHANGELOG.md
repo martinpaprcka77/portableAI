@@ -7,6 +7,80 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-09-23
+
+### Added
+
+- **Kategorie komponent: `Required` / `Recommended` / `Optional`** - každá
+  komponenta v katalogu má `Category`, `DisplayName`, `Description`
+  a `AltSources`. `reasonix` je `Required`, `pi` `Recommended` a `claude`
+  s `dsh` `Optional`. Katalog je nově funkce `Get-ComponentCatalog`
+  v `scripts/_common.ps1`, takže ho sdílí setup, diagnostika i self-test.
+- **`Test-Component` s pěti režimy** - detekce v `workspace`
+  (`bin/npm-global`), `workspace-local` (`node_modules/.bin`), `global-npm`
+  (`%APPDATA%\npm`), `system` (`Get-Command`) a `none`. Vrací `Found`,
+  `Source`, `Path`, `Version`, `Portable` a `MultipleFound`; vítězí první
+  zásah v tomto pořadí. Pomocná funkce `Get-ComponentShimPath` nahrazuje
+  duplikované hledání shimů.
+- **Přepínače `-SkipOptional` a `-InstallOptional <jméno>`** v
+  `Setup-DeepSeekStack.ps1` - výběr komponent podle kategorií. `Optional`
+  komponenty se instalují jen na výslovné vyžádání (`-InstallOptional
+  claude,dsh`).
+- **Přepínač `-UseGlobalIfPresent`** - vědomá výjimka: když je komponenta
+  nalezena mimo workspace, použije se globální instalace místo doinstalování
+  do `bin/npm-global`.
+- **Kontrola 16 v `Test-Workspace.ps1`:** „Required komponenty v workspace“ -
+  `reasonix` musí být v `bin/npm-global`, jinak `FAIL`; ostatní komponenty se
+  hlásí jako `INFO`, když jsou mimo workspace.
+- **Sekce 7 v `Get-AiStackInfo.ps1` rozdělená podle kategorií** - místo
+  plochého seznamu agentů jsou komponenty seskupené jako `Required`,
+  `Recommended` a `Optional`; chybějící `Required` je `FAIL`, chybějící
+  `Recommended` `WARN`, chybějící `Optional` `INFO`.
+- **Dokumentace a manuál** - `docs/01-INSTALL.md` (co Setup instaluje),
+  `docs/02-CONFIG.md` (kategorie, kde se komponenta hledá, tabulka balíčků
+  s kategoriemi), `manual/00-quickstart.md`, `manual/01-cheatsheet.md`,
+  `manual/03-faq.md` (nové otázky 7a, 7b a 23), `docs/00-OVERVIEW.md`,
+  `docs/03-TROUBLESHOOTING.md`, `docs/04-ARCHITECTURE.md`,
+  `docs/05-SECURITY.md`, `docs/06-DEVIATIONS.md`, `manual/02-workflows.md`,
+  `gists/0004-pi-reasonix.md` a `prompts/00-system.md`.
+
+### Changed
+
+- **`_common.ps1` rozšířen o sdílený katalog a detekci komponent** -
+  `Get-ComponentCatalog`, `Test-Component` a `Get-ComponentShimPath`.
+  `Setup-DeepSeekStack.ps1` si katalog načítá do `$ComponentCatalog`
+  a `Resolve-ComponentShim` deleguje na společného helpera.
+- **Volitelné rozšíření `pi-reasonix` se instaluje s `--ignore-scripts
+  --legacy-peer-deps`** a detekce „už nainstalováno“ vyžaduje
+  `node_modules/pi-reasonix/package.json` (neúspěšná instalace po sobě
+  nechává prázdný skeleton). Rozšíření se zároveň neinstaluje při
+  `-SkipOptional`.
+- **Historické audity** (`docs/docs-manual-audit.md`, `docs/prompts-audit.md`,
+  `docs/METAPROMPT-REVISION.md`) si ponechávají původní otisk verze `1.0.3`,
+  protože popisují stav v době svého vzniku; aktuální stav je v `CHANGELOG.md`
+  a `VERSION`.
+
+### Fixed
+
+- **Bug #2: Setup přeskakoval instalaci při globálním `PATH`.** Když setup
+  našel nástroj v `PATH` mimo workspace, ohlásil
+  `nalezeno v PATH mimo workspace - instalace přeskočena` a komponentu
+  nedoinstaloval. Workspace pak fungoval jen díky globálním instalacím a po
+  zkopírování na jiný stroj přestal fungovat. Nyní se každá vybraná komponenta
+  vždy instaluje do `bin/npm-global`; `Portable` se počítá jen pro cesty
+  uvnitř workspace.
+- **Instalace rozšíření `pi-reasonix@1.1.0` selhávala** hlášením
+  `command failed: npm run build || true`. Příčinou není peer závislost, ale
+  `postinstall` skript: `tsc` bez `tsconfig.json` (v balíčku není) vypíše
+  nápovědu a skončí chybou a `|| true` není platný `cmd` příkaz. Balíček
+  přitom už veze předpřipravený `dist/`, takže build není potřeba -
+  `--ignore-scripts` instalaci opraví a `--legacy-peer-deps` navíc zabrání
+  tomu, aby npm stáhl druhou celou kopii Pi agenta do vnořeného
+  `node_modules`.
+- **`Test-Workspace.ps1` kontrola 16** doplňuje kontrolu 10 v `SelfHeal.ps1`
+  („`reasonix` v `bin/npm-global`“): portabilitu `Required` komponent ověřuje
+  strojově z katalogu, takže se přidání další povinné komponenty neopomene.
+
 ## [1.0.3] - 2026-09-23
 
 ### Added

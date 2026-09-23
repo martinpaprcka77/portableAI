@@ -14,7 +14,10 @@ pwsh -File scripts\Test-Workspace.ps1
 | 1 | `pwsh.exe` není rozpoznán | PowerShell 7 není v `PATH` | Nainstalujte PS7, nebo použijte `launcher\Start-PortableAI.cmd` (má fallback na `powershell.exe`) |
 | 2 | Diakritika v konzoli je rozbitá (`Ã¡` místo `á`) | Konzole není v UTF-8 | Spusťte `scripts\Repair-Repo.ps1`; viz `gists/0005-utf8-console.md` |
 | 3 | `node --version` hlásí verzi < 22.19 | Zastaralý Node | Aktualizujte Node ručně; workspace nic neinstaluje |
-| 4 | `Setup` hlásí `npm exit 1` | Chybí síť, proxy, nebo neexistuje balíček | Zkontrolujte síť; upravte `$ComponentCatalog` v `Setup-DeepSeekStack.ps1` |
+| 4 | `Setup` hlásí `npm exit 1` | Chybí síť, proxy, nebo neexistuje balíček | Zkontrolujte síť; upravte katalog `Get-ComponentCatalog` v `scripts/_common.ps1` |
+| 4a | `Setup` hlásí `instalace selhala` u rozšíření `pi-reasonix` | Chybí `--ignore-scripts` (postinstall `npm run build` na Windows selže) | Aktualizujte workspace na 1.0.4+; viz `gists/0004-pi-reasonix.md` |
+| 4b | `Setup -WhatIf` plánuje instalaci nástroje, který už mám globálně | Tak je to správně — globální instalace není přenositelná | Nechte setup doinstalovat do `bin/npm-global`, nebo vědomě použijte `-UseGlobalIfPresent` |
+| 4c | `Test-Workspace` kontrola 16 hlásí `FAIL` (`Required komponenty v workspace`) | `reasonix` není v `bin/npm-global`, jen globálně | `pwsh -File scripts\Setup-DeepSeekStack.ps1` |
 | 5 | `Get-AiStackInfo` hlásí `DEEPSEEK_API_KEY: <nenastaveno>` | Chybí `env\.env` | `Copy-Item env\.env.example env\.env` a vyplňte klíč |
 | 6 | API vrací `401 Unauthorized` | Neplatný nebo expirovaný klíč | Vygenerujte nový klíč a aktualizujte `env\.env` |
 | 7 | `Test-Workspace` hlásí `bez BOM: ...ps1` | Skript byl uložen bez BOM | `Test-Workspace.ps1 -Fix` (přidá BOM) |
