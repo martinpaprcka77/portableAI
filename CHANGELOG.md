@@ -30,24 +30,26 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 - **`-Json` výstup SelfHealu zůstává strojově čitelný.** Nová zpráva
   o přegenerování stromu se v `-Json` módu nevypisuje do konzole (šla by
   na stdout a rozbila by parsování); informace je v `Detailu` nálezu.
+- **SelfHeal kontrola 12: `-0 dní` u stáří stromu.** Hlavička
+  `directory-tree.txt` nese lokální čas generátoru, takže na runneru v UTC
+  vycházelo stáří mírně do minusu a report zobrazoval `-0 dní`. Záporné
+  stáří se nyní zobrazuje jako `0 dní` a generátor čas v hlavičce označuje
+  jako lokální.
 
 ### Changed
 
 - **`scripts/Update-Tree.ps1`: nový přepínač `-Force`** - zapíše strom
   vždy, i když se obsah ani datum nemění (vynucené nové datum).
+- **`landing/index.html` srovnána s realitou 1.0.9** - odkaz na
+  `SECURITY.md` (navigace, karta Dokumentace, patička) a zmínka o CI,
+  self-healu a generátoru stromu (`Update-Tree.ps1`) v kartách Skripty
+  a Scaffold i v sekci „Jak začít“; callout uvádí i `Update.cmd -Fix`.
 - **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.9`
   (badge v `README.md` na `1.0.9`).
 - **`README.md`** - regenerace stromu zmiňuje `-Force` a idempotenci;
   `Update.cmd -Fix` uvádí i obnovu stromu.
 - **`docs/04-ARCHITECTURE.md`** - `Update-Tree.ps1` v tabulce komponent
   mění stav i s `-Force`.
-
-### Fixed
-
-- **SelfHeal kontrola 12: `-0 dní` u stáří stromu.** Hlavička `directory-tree.txt`
-  nese lokální čas generátoru, takže na runneru v UTC vycházelo stáří mírně
-  do minusu a report zobrazoval `-0 dní`. Záporné stáří se nyní zobrazuje
-  jako `0 dní` a generátor čas v hlavičce označuje jako lokální.
 
 ## [1.0.8] - 2026-09-23
 

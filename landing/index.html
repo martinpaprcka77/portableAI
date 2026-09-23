@@ -22,6 +22,7 @@
         <a href="#obsahuje">Obsahuje</a>
         <a href="#zacatek">Jak začít</a>
         <a href="../docs/00-OVERVIEW.md">Dokumentace</a>
+        <a href="../SECURITY.md">Bezpečnost</a>
         <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Přepnout světlé a tmavé téma">
           <span class="theme-toggle-icon" aria-hidden="true">◐</span>
           <span class="theme-toggle-text">Téma</span>
@@ -75,7 +76,7 @@
         <div class="grid">
           <article class="card">
             <h3><a href="../scripts/_common.ps1">Skripty</a></h3>
-            <p>Setup, diagnostika, oprava repozitáře a self-test. Idempotentní, s <code>-WhatIf</code>.</p>
+            <p>Setup, diagnostika, oprava repozitáře, self-test a self-heal. Generátor stromu adresářů <code>Update-Tree.ps1</code>. Idempotentní, s <code>-WhatIf</code>.</p>
             <p class="path">scripts/</p>
           </article>
 
@@ -87,7 +88,7 @@
 
           <article class="card">
             <h3><a href="../docs/04-ARCHITECTURE.md">Dokumentace</a></h3>
-            <p>Přehled, instalace, konfigurace, troubleshooting, architektura, bezpečnost a ADR.</p>
+            <p>Přehled, instalace, konfigurace, troubleshooting, architektura a ADR. Bezpečnostní politika: <a href="../SECURITY.md">SECURITY.md</a>.</p>
             <p class="path">docs/</p>
           </article>
 
@@ -111,7 +112,7 @@
 
           <article class="card">
             <h3><a href="../scaffold/01-STRUCTURE.md">Scaffold</a></h3>
-            <p>Popis struktury, vlastnictví složek a vygenerovaný strom adresářů.</p>
+            <p>Popis struktury, vlastnictví složek a vygenerovaný strom adresářů. Regenerace: <code>pwsh -File scripts\Update-Tree.ps1</code>.</p>
             <p class="path">scaffold/</p>
           </article>
 
@@ -144,7 +145,7 @@
           </li>
           <li>
             <h3>Ověřte stav</h3>
-            <p><code>pwsh -File scripts\Test-Workspace.ps1</code> musí vrátit <code>PASS</code>.</p>
+            <p><code>pwsh -File scripts\Test-Workspace.ps1</code> musí vrátit <code>PASS</code>. Stejné kontroly (setup → self-heal → self-test) běží i v CI na GitHubu.</p>
           </li>
           <li>
             <h3>Spusťte agenta</h3>
@@ -158,6 +159,8 @@
             Nejdřív <a href="../docs/03-TROUBLESHOOTING.md">troubleshooting</a>, potom
             <code>pwsh -File scripts\Test-Workspace.ps1 -Fix -WhatIf</code>
             (náhled oprav) a teprve pak <code>-Fix</code> bez <code>-WhatIf</code>.
+            Self-heal <code>Update.cmd -Fix</code> navíc přegeneruje strom adresářů,
+            když je zastaralý.
           </p>
         </div>
       </div>
@@ -169,6 +172,7 @@
       <p>
         Portable AI Workspace v1.0.9 ·
         licence <a href="../LICENSE">MIT</a> ·
+        <a href="../SECURITY.md">security policy</a> ·
         <a href="../CHANGELOG.md">changelog</a> ·
         <a href="../README.md">readme</a>
       </p>
