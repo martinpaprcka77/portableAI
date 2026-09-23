@@ -9,6 +9,8 @@
 | `env/.env` | **ne** (gitignored) | skutečné hodnoty včetně API klíče |
 | `gists/snippets/*` | ano | hotové konfigurační soubory ke zkopírování |
 | `data/reasonix/config.toml` | **ne** | vygenerovaná konfigurace Reasonixu |
+| `.reasonix/` | **ne** (gitignored) | runtime stav agenta (tasky, snapshoty), stejně jako `logs/` a `bin/` |
+| `session-*.md` | **ne** (gitignored) | transkript běžící session agenta v kořeni workspace |
 | `.vscode/settings.json` | ano | nastavení editoru (encoding, EOL) |
 | `.editorconfig` | ano | vynucení konvencí v editorech |
 

@@ -7,6 +7,23 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-09-23
+
+### Fixed
+
+- **Self-heal a self-test hlásily runtime artefakty agenta jako untracked
+  soubory.** Práce agenta uvnitř workspace vytváří `.reasonix/` (tasky,
+  snapshoty) a `session-*.md` v kořeni; `.gitignore` je neznal, takže
+  `SelfHeal.ps1` hlásil `WARN Git status: untracked soubory` a `Update.cmd`
+  vypadal jako rozbitý. Obě cesty jsou nyní v `.gitignore` ve stejné
+  kategorii jako `logs/`, `data/` a `bin/` - runtime stav se necommituje.
+
+### Changed
+
+- **`docs/02-CONFIG.md`** - tabulka konfiguračních souborů doplněna o
+  `.reasonix/` a `session-*.md` (verzované: **ne**).
+- **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.6`.
+
 ## [1.0.5] - 2026-09-23
 
 ### Added

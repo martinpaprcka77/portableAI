@@ -23,6 +23,12 @@ data/*
 bin/*
 !bin/.gitkeep
 
+# --- Runtime agenta (Reasonix) ----------------------------------------------
+# Stav běžícího agenta: tasky, snapshoty a transkripty sessions. Není součástí
+# workspace - stejně jako logs/, data/ a bin/ se needituje a necommituje.
+.reasonix/
+session-*.md
+
 # --- Editor / OS ------------------------------------------------------------
 *.local.json
 *.swp
