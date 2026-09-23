@@ -1,0 +1,35 @@
+{
+  "$comment": "Portable AI Workspace - dostupné modely. Cíl: data/reasonix/models.json",
+  "provider": "deepseek",
+  "baseUrlFrom": "DEEPSEEK_BASE_URL",
+  "apiKeyFrom": "DEEPSEEK_API_KEY",
+  "default": "deepseek-chat",
+  "models": [
+    {
+      "id": "deepseek-chat",
+      "label": "DeepSeek Chat",
+      "role": "general",
+      "contextWindow": 131072,
+      "maxOutput": 8192,
+      "temperature": 0.2,
+      "notes": "Obecný model pro běžné úlohy a psaní kódu."
+    },
+    {
+      "id": "deepseek-reasoner",
+      "label": "DeepSeek Reasoner",
+      "role": "reasoning",
+      "contextWindow": 131072,
+      "maxOutput": 65536,
+      "temperature": 0.6,
+      "notes": "Model s explicitním uvažováním. Vyšší cena, lepší výsledky u složitých úloh."
+    }
+  ],
+  "fallbacks": [
+    "deepseek-chat"
+  ],
+  "routing": {
+    "default": "deepseek-chat",
+    "onComplexity": "deepseek-reasoner",
+    "complexityThreshold": "high"
+  }
+}

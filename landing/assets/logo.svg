@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Portable AI Workspace">
+  <title>Portable AI Workspace</title>
+  <desc>Monochromatické geometrické logo: přenosný blok s uzlem sítě.</desc>
+  <g fill="none" stroke="#4cc2ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- přenosný blok -->
+    <rect x="6" y="10" width="40" height="40" rx="7" />
+    <!-- uzel sítě -->
+    <circle cx="46" cy="18" r="5" />
+    <circle cx="54" cy="38" r="5" />
+    <circle cx="40" cy="50" r="5" />
+    <path d="M26 30 L46 18" />
+    <path d="M26 30 L54 38" />
+    <path d="M26 30 L40 50" />
+  </g>
+  <circle cx="26" cy="30" r="4.5" fill="#4cc2ff" />
+</svg>

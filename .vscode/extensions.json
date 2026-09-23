@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-vscode.PowerShell",
+    "EditorConfig.EditorConfig",
+    "davidanson.vscode-markdownlint",
+    "yzhang.markdown-all-in-one",
+    "redhat.vscode-yaml",
+    "esbenp.prettier-vscode",
+    "timonwong.shellcheck"
+  ],
+  "unwantedRecommendations": []
+}

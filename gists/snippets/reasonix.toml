@@ -1,0 +1,24 @@
+# Portable AI Workspace — konfigurace Reasonixu
+# Cíl: data/reasonix/config.toml
+# Klíč se bere z prostředí (DEEPSEEK_API_KEY), nikdy se neukládá sem.
+
+[provider]
+name        = "deepseek"
+base_url    = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+
+[model]
+default     = "deepseek-chat"
+reasoning   = "deepseek-reasoner"
+max_tokens  = 8192
+temperature = 0.2
+
+[agent]
+reasoning_effort  = "medium"
+auto_approve      = false
+max_iterations    = 25
+
+[workspace]
+root              = "."
+log_dir           = "logs"
+respect_gitignore = true

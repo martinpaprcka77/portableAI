@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="cs" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Portable AI Workspace — samostatné AI vývojové prostředí pro Windows 11 bez admin práv a bez globálních instalací.">
+  <title>Portable AI Workspace</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Přeskočit na obsah</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#top">
+        <img class="brand-logo" src="assets/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Portable AI Workspace</span>
+        <span class="brand-version">v1.0.1</span>
+      </a>
+      <nav class="site-nav" aria-label="Hlavní navigace">
+        <a href="#obsahuje">Obsahuje</a>
+        <a href="#zacatek">Jak začít</a>
+        <a href="../docs/00-OVERVIEW.md">Dokumentace</a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Přepnout světlé a tmavé téma">
+          <span class="theme-toggle-icon" aria-hidden="true">◐</span>
+          <span class="theme-toggle-text">Téma</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap">
+        <p class="eyebrow">Windows 11 · PowerShell 7+ · Node 22.19+</p>
+        <h1>AI vývojové prostředí v jedné složce</h1>
+        <p class="lead">
+          Zkopírujte složku na disk nebo USB a máte pohromadě AI coding agenty
+          s DeepSeek backendem, jejich konfiguraci, diagnostiku, opravné skripty,
+          knihovnu promptů a dokumentaci. Bez admin práv, bez globálních instalací.
+        </p>
+
+        <div class="quick-links" aria-label="Rychlé odkazy">
+          <a class="btn btn-primary" href="../docs/01-INSTALL.md">
+            <span class="btn-title">Setup</span>
+            <span class="btn-note">jak nainstalovat</span>
+          </a>
+          <a class="btn" href="../docs/03-TROUBLESHOOTING.md">
+            <span class="btn-title">Diagnostics</span>
+            <span class="btn-note">když něco nefunguje</span>
+          </a>
+          <a class="btn" href="../docs/00-OVERVIEW.md">
+            <span class="btn-title">Docs</span>
+            <span class="btn-note">architektura a konfigurace</span>
+          </a>
+          <a class="btn" href="../prompts/README.md">
+            <span class="btn-title">Prompts</span>
+            <span class="btn-note">7 promptů + 3 šablony</span>
+          </a>
+        </div>
+
+        <p class="hero-hint">
+          Spuštění z terminálu:
+          <code>pwsh -File launcher\Start-PortableAI.cmd</code>
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="obsahuje">
+      <div class="wrap">
+        <h2>Co obsahuje</h2>
+        <p class="section-note">Osm oblastí, každá na svém místě.</p>
+
+        <div class="grid">
+          <article class="card">
+            <h3><a href="../scripts/_common.ps1">Skripty</a></h3>
+            <p>Setup, diagnostika, oprava repozitáře a self-test. Idempotentní, s <code>-WhatIf</code>.</p>
+            <p class="path">scripts/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../prompts/README.md">Prompty</a></h3>
+            <p>System prompt, diagnostika, coding, refaktoring, review, debugging a šablony.</p>
+            <p class="path">prompts/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../docs/04-ARCHITECTURE.md">Dokumentace</a></h3>
+            <p>Přehled, instalace, konfigurace, troubleshooting, architektura, bezpečnost a ADR.</p>
+            <p class="path">docs/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../manual/00-quickstart.md">Manuál</a></h3>
+            <p>Quickstart na 5 minut, cheatsheet, workflows, FAQ a glosář pojmů.</p>
+            <p class="path">manual/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../launcher/Start-PortableAI.cmd">Launcher</a></h3>
+            <p>Interaktivní menu a tenké <code>.cmd</code> wrappery pro jednotlivé nástroje.</p>
+            <p class="path">launcher/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../gists/README.md">Gisty</a></h3>
+            <p>Znovupoužitelné snippety a hotové konfigurační soubory ke zkopírování.</p>
+            <p class="path">gists/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../scaffold/01-STRUCTURE.md">Scaffold</a></h3>
+            <p>Popis struktury, vlastnictví složek a vygenerovaný strom adresářů.</p>
+            <p class="path">scaffold/</p>
+          </article>
+
+          <article class="card">
+            <h3><a href="../docs/adr/0001-record-architecture-decisions.md">ADR</a></h3>
+            <p>Záznamy architektonických rozhodnutí — proč je co udělané tak, jak je.</p>
+            <p class="path">docs/adr/</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="zacatek">
+      <div class="wrap">
+        <h2>Jak začít</h2>
+        <p class="section-note">Pět kroků, přibližně pět minut.</p>
+
+        <ol class="steps">
+          <li>
+            <h3>Rozbalte workspace</h3>
+            <p>ZIP nebo <code>git clone</code> do <code>C:\portableAI\</code>. Funguje i jiná cesta.</p>
+          </li>
+          <li>
+            <h3>Spusťte setup</h3>
+            <p><code>pwsh -File scripts\Setup-DeepSeekStack.ps1</code> — nainstaluje nástroje lokálně do <code>bin\npm-global</code>.</p>
+          </li>
+          <li>
+            <h3>Doplňte API klíč</h3>
+            <p>Do <code>env\.env</code> vložte <code>DEEPSEEK_API_KEY</code>. Soubor je v <code>.gitignore</code>.</p>
+          </li>
+          <li>
+            <h3>Ověřte stav</h3>
+            <p><code>pwsh -File scripts\Test-Workspace.ps1</code> musí vrátit <code>PASS</code>.</p>
+          </li>
+          <li>
+            <h3>Spusťte agenta</h3>
+            <p>Menu nebo <code>launcher\Launch-Reasonix.cmd</code>. První prompt vezměte z <a href="../prompts/00-system.md">prompts/00-system.md</a>.</p>
+          </li>
+        </ol>
+
+        <div class="callout">
+          <h3>Když něco selže</h3>
+          <p>
+            Nejdřív <a href="../docs/03-TROUBLESHOOTING.md">troubleshooting</a>, potom
+            <code>pwsh -File scripts\Test-Workspace.ps1 -Fix -WhatIf</code>
+            (náhled oprav) a teprve pak <code>-Fix</code> bez <code>-WhatIf</code>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p>
+        Portable AI Workspace v1.0.1 ·
+        licence <a href="../LICENSE">MIT</a> ·
+        <a href="../CHANGELOG.md">changelog</a> ·
+        <a href="../README.md">readme</a>
+      </p>
+      <p class="footer-note">
+        Statická stránka bez externích závislostí. Otevřete ji z disku —
+        relativní odkazy na <code>.md</code> a <code>.cmd</code> soubory se
+        zobrazí ve výchozí aplikaci.
+      </p>
+    </div>
+  </footer>
+
+  <button id="to-top" class="to-top" type="button" aria-label="Nahoru" hidden>↑</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
