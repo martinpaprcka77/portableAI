@@ -560,11 +560,15 @@ else {
         Write-Log -Message 'Instalace přeskočena (-SkipInstall). Ověřuji jen to, co už v bin/npm-global je.' -Level WARN
     }
 
+    # `pwsh -File` předá `-InstallOptional claude,dsh` jako jediný řetězec, proto
+    # se hodnoty dělí i na čárkách - funguje tak volání z PowerShellu i z .cmd.
     $requestedOptional = @()
     foreach ($requestedName in @($InstallOptional)) {
-        $normalizedName = ([string]$requestedName).Trim()
-        if ($normalizedName) {
-            $requestedOptional += $normalizedName.ToLowerInvariant()
+        foreach ($part in ([string]$requestedName -split ',')) {
+            $normalizedName = $part.Trim()
+            if ($normalizedName) {
+                $requestedOptional += $normalizedName.ToLowerInvariant()
+            }
         }
     }
 
