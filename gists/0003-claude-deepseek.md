@@ -14,7 +14,7 @@ Anthropic-compatible API. DeepSeek takový endpoint nabízí, takže stačí př
 ```dotenv
 # env/.env
 ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
-ANTHROPIC_AUTH_TOKEN=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}
 ANTHROPIC_MODEL=deepseek-chat
 
 # Volitelné: menší model pro rychlé operace
@@ -22,7 +22,8 @@ ANTHROPIC_SMALL_FAST_MODEL=deepseek-chat
 ```
 
 > `ANTHROPIC_AUTH_TOKEN` je stejná hodnota jako `DEEPSEEK_API_KEY`. Ve `.env`
-> ji definujte jednou a druhou odvoďte — viz blok níže.
+> ji nemusíte vyplňovat — `Import-DotEnv` ji odvodí substitucí `${VAR}`
+> z klíče v prostředí, nebo z `.env`.
 
 ## Nastavení v PowerShellu
 
@@ -30,8 +31,9 @@ ANTHROPIC_SMALL_FAST_MODEL=deepseek-chat
 . .\scripts\_common.ps1
 Import-DotEnv
 
-# Odvození tokenu z DeepSeek klíče (jediné místo s hodnotou)
-if ($env:DEEPSEEK_API_KEY -and -not $env:ANTHROPIC_AUTH_TOKEN) {
+# ANTHROPIC_AUTH_TOKEN se odvodí z DEEPSEEK_API_KEY substitucí ${VAR}.
+# Ruční fallback je potřeba jen když .env substituci neobsahuje:
+if (-not $env:ANTHROPIC_AUTH_TOKEN -and $env:DEEPSEEK_API_KEY) {
     $env:ANTHROPIC_AUTH_TOKEN = $env:DEEPSEEK_API_KEY
 }
 if (-not $env:ANTHROPIC_BASE_URL) {

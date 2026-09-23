@@ -49,6 +49,42 @@ $env:DEEPSEEK_MODEL = 'deepseek-reasoner'
 pwsh -File scripts\Get-AiStackInfo.ps1
 ```
 
+### Priorita zdrojů DEEPSEEK_API_KEY
+
+Původ klíče určuje `Get-EnvValueSource` v tomto pořadí:
+
+```
+1. Process scope   ← nejvyšší priorita, označeno POUŽITO
+2. User scope
+3. Machine scope
+4. env/.env
+```
+
+Environment má přednost před `.env`. Když klíč rotatedíte v prostředí,
+`.env` se automaticky ignoruje a `Setup-DeepSeekStack.ps1` do něj nic
+nezapisuje — existuje jediný zdroj pravdy. Aktivní zdroj i maskovaný klíč
+vypíše `Get-AiStackInfo.ps1` v sekci `6. API` (položky `zdroj: …`
+a `aktivní zdroj`).
+
+### Priorita při expanzi ${VAR}
+
+Hodnota z env (Process/User/Machine) má přednost při expanzi `${VAR}`.
+Pokud chcete referenci na hodnotu z `.env`, použijte `${VAR}` s vědomím,
+že env může přebít.
+
+### Sémantika zápisu do Process scope
+
+`Import-DotEnv` zapisuje hodnoty z `.env` do Process scope vždy, když
+nejsou v Process scope přítomny. To zaručuje, že potomkové procesy
+(`claude.cmd`, `dsh`, `pi`) hodnotu zdědí.
+
+Důsledek: pokud shell vznikl před nastavením User scope a Process
+scope byl prázdný, diagnostika může hlásit „User scope" jako zdroj,
+i když hodnota reálně pochází z `.env`.
+
+Toto je vědomá vlastnost, ne bug. Funkční chování je správné: potomek
+vždy dostane klíč, i když diagnostika zdroj interpretuje nepřesně.
+
 ## Formát `.env`
 
 Podporované tvary:
@@ -61,8 +97,22 @@ KEY3='hodnota v apostrofech'
 export KEY4=hodnota
 ```
 
-Nepodporované: víceřádkové hodnoty, substituce `${VAR}` uvnitř hodnot,
-escape sekvence. Držte se jednoduchého `KEY=hodnota`.
+Podporované substituce uvnitř hodnot:
+
+```dotenv
+KEY=${OTHER}      # substituce (hledá v env, teprve pak v .env)
+KEY=$OTHER        # ekvivalent k ${OTHER}
+KEY=\${OTHER}     # escapováno - zůstane doslovně "${OTHER}"
+KEY=\$OTHER       # escapováno - zůstane doslovně "$OTHER"
+```
+
+Substituce je rekurzivní (limit 10 úrovní). Přímý cyklus (`A=${B}`, `B=${A}`)
+zůstane neexpandovaný a ohlásí se jako `WARN`. Nedefinovaná proměnná v `${VAR}`
+se nahradí prázdným řetězcem (též `WARN`). Neplatné tvary (`$1`, `$-`,
+osamocené `$`) zůstávají beze změny.
+
+Nepodporované: víceřádkové hodnoty a escape sekvence. Držte se jednoduchého
+`KEY=hodnota`.
 
 ## Ověřené balíčky
 

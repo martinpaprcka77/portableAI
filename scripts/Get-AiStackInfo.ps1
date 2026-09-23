@@ -248,6 +248,13 @@ foreach ($candidate in @((Join-Path -Path $root -ChildPath 'env/.env'), (Join-Pa
         break
     }
 }
+# Původ klíče je nutné zjistit PŘED načtením .env - Import-DotEnv plní Process
+# scope, takže po načtení by se jako zdroj jevil vždy "Process".
+$preLoadKeyScopes = [ordered]@{
+    Process = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Process')
+    User    = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+    Machine = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Machine')
+}
 $dotEnvValues = Import-DotEnv
 
 $envSection = [ordered]@{}
@@ -256,6 +263,18 @@ Add-ReportEntry -Section $envSection -Name '.env.example' -Status $(if (Test-Pat
 Add-ReportEntry -Section $envSection -Name 'Načtené klíče' -Status 'INFO' -Value ('{0} klíčů' -f $dotEnvValues.Count)
 if ($dotEnvValues.Count -gt 0) {
     Add-ReportEntry -Section $envSection -Name 'Klíče' -Status 'INFO' -Value (($dotEnvValues.Keys | Sort-Object) -join ', ')
+}
+
+# Substituce ${VAR}/$VAR: po expanzi nesmí v hodnotách zůstat žádná reference.
+$unexpandedValues = @($dotEnvValues.Keys | Where-Object { ([string]$dotEnvValues[$_]) -match '\$\{[A-Za-z_][A-Za-z0-9_]*\}' })
+if ($dotEnvValues.Count -eq 0) {
+    Add-ReportEntry -Section $envSection -Name 'Substituce ${VAR}' -Status 'INFO' -Value 'žádné hodnoty k expanzi'
+}
+elseif ($unexpandedValues.Count -eq 0) {
+    Add-ReportEntry -Section $envSection -Name 'Substituce ${VAR}' -Status 'OK' -Value ('{0} hodnot expandováno bez zbytku' -f $dotEnvValues.Count)
+}
+else {
+    Add-ReportEntry -Section $envSection -Name 'Substituce ${VAR}' -Status 'WARN' -Value ('neexpandované reference u: {0}' -f ($unexpandedValues -join ', '))
 }
 $report['5. Prostředí'] = $envSection
 
@@ -267,12 +286,64 @@ $apiKeySet = -not [string]::IsNullOrWhiteSpace($apiKey)
 
 $apiSection = [ordered]@{}
 Add-ReportEntry -Section $apiSection -Name 'DEEPSEEK_API_KEY' -Status $(if ($apiKeySet) { 'OK' } else { 'WARN' }) -Value (Get-MaskedValue -Value $apiKey)
+
+# Původ klíče: priorita Process -> User -> Machine -> .env (viz Get-EnvValueSource).
+$keySource = Get-EnvValueSource -Name 'DEEPSEEK_API_KEY' -DotEnvValues $dotEnvValues -ProcessValue ([string]$preLoadKeyScopes['Process'])
+
+foreach ($scopeName in @('Process', 'User', 'Machine')) {
+    $scopeValue = [string]$preLoadKeyScopes[$scopeName]
+    $isActive = $keySource.Found -and $keySource.Source -eq $scopeName
+    $status = 'INFO'
+    $label = 'nenastaveno'
+    if (-not [string]::IsNullOrWhiteSpace($scopeValue)) {
+        $label = 'set (len={0})' -f $scopeValue.Length
+        if ($isActive) {
+            $label += '  <- POUŽITO'
+            $status = 'OK'
+        }
+    }
+    Add-ReportEntry -Section $apiSection -Name ('zdroj: {0}' -f $scopeName) -Status $status -Value $label
+}
+
+$dotEnvKeyValue = if ($dotEnvValues.ContainsKey('DEEPSEEK_API_KEY')) { [string]$dotEnvValues['DEEPSEEK_API_KEY'] } else { '' }
+if ([string]::IsNullOrWhiteSpace($dotEnvKeyValue)) {
+    Add-ReportEntry -Section $apiSection -Name 'zdroj: .env' -Status 'INFO' -Value 'nenastaveno'
+}
+elseif ($keySource.Source -eq '.env') {
+    Add-ReportEntry -Section $apiSection -Name 'zdroj: .env' -Status 'OK' -Value ('set (len={0})  <- POUŽITO' -f $dotEnvKeyValue.Length)
+}
+elseif ($keySource.Found -and $keySource.Value -ceq $dotEnvKeyValue) {
+    Add-ReportEntry -Section $apiSection -Name 'zdroj: .env' -Status 'INFO' -Value ('set (len={0})  <- ignorováno, env má přednost (stejná hodnota)' -f $dotEnvKeyValue.Length)
+}
+else {
+    Add-ReportEntry -Section $apiSection -Name 'zdroj: .env' -Status 'WARN' -Value ('set (len={0})  <- ignorováno, env má přednost (hodnota se liší)' -f $dotEnvKeyValue.Length)
+}
+
+if ($keySource.Found) {
+    Add-ReportEntry -Section $apiSection -Name 'aktivní zdroj' -Status 'OK' -Value ('{0} ({1})' -f $keySource.Source, (Get-MaskedValue -Value $keySource.Value))
+}
+else {
+    Add-ReportEntry -Section $apiSection -Name 'aktivní zdroj' -Status 'WARN' -Value 'DEEPSEEK_API_KEY není v env ani v .env'
+}
+
 foreach ($apiVariable in @('DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL', 'DEEPSEEK_REASONER_MODEL', 'ANTHROPIC_BASE_URL')) {
     $apiValue = [Environment]::GetEnvironmentVariable($apiVariable)
     if ([string]::IsNullOrWhiteSpace($apiValue)) {
         $apiValue = '<nenastaveno>'
     }
     Add-ReportEntry -Section $apiSection -Name $apiVariable -Status 'INFO' -Value $apiValue
+}
+
+# ANTHROPIC_AUTH_TOKEN se v .env obvykle odvozuje jako ${DEEPSEEK_API_KEY}.
+$authToken = [Environment]::GetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN')
+if ([string]::IsNullOrWhiteSpace($authToken)) {
+    Add-ReportEntry -Section $apiSection -Name 'ANTHROPIC_AUTH_TOKEN' -Status 'WARN' -Value 'nenastaveno - Claude Code se proti DeepSeek nepřihlásí'
+}
+elseif ($authToken -match '\$\{') {
+    Add-ReportEntry -Section $apiSection -Name 'ANTHROPIC_AUTH_TOKEN' -Status 'FAIL' -Value ('neexpandovaná substituce: {0}' -f $authToken)
+}
+else {
+    Add-ReportEntry -Section $apiSection -Name 'ANTHROPIC_AUTH_TOKEN' -Status 'OK' -Value (Get-MaskedValue -Value $authToken)
 }
 $report['6. API'] = $apiSection
 

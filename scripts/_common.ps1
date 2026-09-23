@@ -297,6 +297,203 @@ function Test-IsAdmin {
     }
 }
 
+function Get-EnvValueSource {
+    <#
+    .SYNOPSIS
+        Zjistí, odkud se bere hodnota dané proměnné prostředí.
+    .DESCRIPTION
+        Prohledá zdroje v pořadí priority a vrátí první nalezený:
+
+        ```
+        1. Process scope
+        2. User scope
+        3. Machine scope
+        4. hodnoty načtené z `.env` souboru
+        ```
+
+        Pořadí je záměrně "env před `.env`": živější zdroj (např. rotovaný
+        klíč) musí vyhrát i při expanzi `${VAR}`, ne jen při přímém čtení.
+        Stejné pořadí používá `Expand-DotEnvValue`, takže priorita existuje
+        na jediném místě.
+
+        Vrácený objekt má vlastnosti `Name`, `Source`, `Value` a `Found`.
+        `Source` je jedno z `Process`, `User`, `Machine`, `.env` nebo `none`.
+        `Value` je vždy surová (nemaskovaná) hodnota - maskování je věcí
+        volajícího.
+    .PARAMETER Name
+        Název proměnné prostředí.
+    .PARAMETER DotEnvValues
+        Hashtable hodnot načtených z `.env`. Používá se jako poslední fallback.
+    .PARAMETER ProcessValue
+        Hodnota Process scope platná před načtením `.env`. Používá se tam, kde
+        už `Import-DotEnv` zapsal `.env` do Process scope a přímé čtení by
+        zakrylo skutečný původ hodnoty.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+    .EXAMPLE
+        $source = Get-EnvValueSource -Name 'DEEPSEEK_API_KEY' -DotEnvValues $dotEnv
+        if ($source.Found) { Write-Log -Message $source.Source -Level OK }
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Name,
+
+        [Parameter()]
+        [hashtable]$DotEnvValues = @{},
+
+        [Parameter()]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$ProcessValue
+    )
+
+    if (-not $PSBoundParameters.ContainsKey('ProcessValue')) {
+        $ProcessValue = [Environment]::GetEnvironmentVariable($Name, 'Process')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ProcessValue)) {
+        return [pscustomobject]@{ Name = $Name; Source = 'Process'; Value = $ProcessValue; Found = $true }
+    }
+
+    foreach ($scope in @('User', 'Machine')) {
+        $scopeValue = [Environment]::GetEnvironmentVariable($Name, $scope)
+        if (-not [string]::IsNullOrWhiteSpace($scopeValue)) {
+            return [pscustomobject]@{ Name = $Name; Source = $scope; Value = $scopeValue; Found = $true }
+        }
+    }
+
+    if ($DotEnvValues -and $DotEnvValues.ContainsKey($Name)) {
+        $dotEnvValue = [string]$DotEnvValues[$Name]
+        if (-not [string]::IsNullOrWhiteSpace($dotEnvValue)) {
+            return [pscustomobject]@{ Name = $Name; Source = '.env'; Value = $dotEnvValue; Found = $true }
+        }
+    }
+
+    return [pscustomobject]@{ Name = $Name; Source = 'none'; Value = $null; Found = $false }
+}
+
+function Expand-DotEnvValue {
+    <#
+    .SYNOPSIS
+        Expanduje reference `${VAR}` a `$VAR` v hodnotě z `.env` souboru.
+    .DESCRIPTION
+        Nahradí v hodnotě odkazy na jiné proměnné. Podporované tvary:
+
+        ```
+        ${VAR}    substituce (preferovaný, jednoznačný tvar)
+        $VAR      ekvivalent k ${VAR}
+        \${VAR}   escapováno - zůstane doslovně "${VAR}"
+        \$VAR     escapováno - zůstane doslovně "$VAR"
+        ```
+
+        Neplatné tvary (`$1`, `$-`, osamocené `$`) se ponechávají beze změny
+        a nehlásí se u nich WARN.
+
+        Hodnota se hledá stejnou prioritou jako všude jinde v workspace
+        (`Get-EnvValueSource`): Process -> User -> Machine -> `.env`.
+        Expanze je rekurzivní s limitem `MaxDepth`; přímý cyklus
+        (`A=${B}`, `B=${A}`) se detekuje a taková reference zůstane
+        neexpandovaná, aby uživatel viděl, co je špatně.
+
+        Hodnota bez `$` se vrací beze změny (rychlá cesta bez expanze).
+    .PARAMETER Value
+        Hodnota k expanzi.
+    .PARAMETER Variables
+        Hashtable hodnot načtených z `.env` - fallback pro substituci.
+    .PARAMETER MaxDepth
+        Maximální hloubka rekurze. Výchozí 10.
+    .PARAMETER Stack
+        Interní - zásobník právě rozbalovaných jmen pro detekci cyklu.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        $value = Expand-DotEnvValue -Value '${DEEPSEEK_API_KEY}' -Variables $dotEnv
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Position = 0)]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string]$Value,
+
+        [Parameter()]
+        [hashtable]$Variables = @{},
+
+        [Parameter()]
+        [ValidateRange(1, 100)]
+        [int]$MaxDepth = 10,
+
+        [Parameter(DontShow)]
+        [string[]]$Stack = @()
+    )
+
+    if ([string]::IsNullOrEmpty($Value) -or $Value.IndexOf('$') -lt 0) {
+        return $Value
+    }
+
+    $pattern = '\\\$\{(?<escBraced>[A-Za-z_][A-Za-z0-9_]*)\}|\\\$(?<escPlain>[A-Za-z_][A-Za-z0-9_]*)|(?<!\\)\$\{(?<braced>[A-Za-z_][A-Za-z0-9_]*)\}|(?<!\\)\$(?<plain>[A-Za-z_][A-Za-z0-9_]*)'
+    $referenceMatches = [regex]::Matches($Value, $pattern)
+    if ($referenceMatches.Count -eq 0) {
+        return $Value
+    }
+
+    $builder = [System.Text.StringBuilder]::new()
+    $position = 0
+
+    foreach ($match in $referenceMatches) {
+        [void]$builder.Append($Value.Substring($position, $match.Index - $position))
+        $position = $match.Index + $match.Length
+
+        if ($match.Groups['escBraced'].Success) {
+            [void]$builder.Append('${').Append($match.Groups['escBraced'].Value).Append('}')
+            continue
+        }
+        if ($match.Groups['escPlain'].Success) {
+            [void]$builder.Append('$').Append($match.Groups['escPlain'].Value)
+            continue
+        }
+
+        if ($match.Groups['braced'].Success) {
+            $name = $match.Groups['braced'].Value
+            $reference = '${' + $name + '}'
+            $isBraced = $true
+        }
+        else {
+            $name = $match.Groups['plain'].Value
+            $reference = '$' + $name
+            $isBraced = $false
+        }
+
+        if ($Stack -contains $name) {
+            Write-Log -Message ('DotEnv: cyklická substituce {0} - ponechávám neexpandovanou' -f $reference) -Level WARN
+            [void]$builder.Append($reference)
+            continue
+        }
+        if ($Stack.Count -ge $MaxDepth) {
+            Write-Log -Message ('DotEnv: překročen limit hloubky {0} u {1} - ponechávám neexpandovanou' -f $MaxDepth, $reference) -Level WARN
+            [void]$builder.Append($reference)
+            continue
+        }
+
+        $resolved = Get-EnvValueSource -Name $name -DotEnvValues $Variables
+        if (-not $resolved.Found) {
+            if ($isBraced) {
+                Write-Log -Message ('DotEnv: {0} není definováno v env ani v .env - nahrazuji prázdným řetězcem' -f $reference) -Level WARN
+            }
+            continue
+        }
+
+        $nested = Expand-DotEnvValue -Value ([string]$resolved.Value) -Variables $Variables -MaxDepth $MaxDepth -Stack ($Stack + $name)
+        [void]$builder.Append($nested)
+    }
+
+    [void]$builder.Append($Value.Substring($position))
+    return $builder.ToString()
+}
+
 function Import-DotEnv {
     <#
     .SYNOPSIS
@@ -305,6 +502,15 @@ function Import-DotEnv {
         Podporuje komentáře (`#`), prefix `export `, jednoduché i dvojité
         uvozovky okolo hodnot a prázdné řádky. Existující proměnné prostředí
         nepřepisuje (aby uživatel mohl hodnotu přebít zvenčí).
+
+        Načítání probíhá ve dvou fázích: nejprve se naparsují všechny dvojice
+        `KEY=VALUE`, pak se hodnoty expandují a teprve nakonec se zapíší do
+        Process scope. Díky tomu fungují i dopředné reference (např.
+        `ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}`, i když je klíč v souboru
+        uveden až za tokenem).
+
+        Vrací už **expandované** hodnoty, takže opakované volání expanzi
+        nezdvojnásobí.
 
         Když není -Path zadán, hledá v tomto pořadí:
         `env/.env` a poté `.env` v kořeni workspace.
@@ -338,11 +544,11 @@ function Import-DotEnv {
         $Path = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     }
 
-    $result = @{}
+    $raw = @{}
 
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         Write-Log -Message "DotEnv: soubor nenalezen ($Path)" -Level DEBUG
-        return $result
+        return $raw
     }
 
     foreach ($rawLine in (Get-Content -LiteralPath $Path -Encoding utf8)) {
@@ -370,10 +576,21 @@ function Import-DotEnv {
             }
         }
 
-        $result[$key] = $value
+        $raw[$key] = $value
+    }
 
-        if (-not $NoEnvironment -and -not [Environment]::GetEnvironmentVariable($key)) {
-            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+    # Druhá fáze: expanze ${VAR}/$VAR nad kompletní sadou klíčů, aby fungovaly
+    # i dopředné reference. Vracíme už expandované hodnoty.
+    $result = @{}
+    foreach ($key in $raw.Keys) {
+        $result[$key] = Expand-DotEnvValue -Value $raw[$key] -Variables $raw
+    }
+
+    if (-not $NoEnvironment) {
+        foreach ($key in $result.Keys) {
+            if (-not [Environment]::GetEnvironmentVariable($key)) {
+                [Environment]::SetEnvironmentVariable($key, [string]$result[$key], 'Process')
+            }
         }
     }
 

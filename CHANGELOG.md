@@ -7,6 +7,69 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-23
+
+### Fixed
+
+- **`ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}` se ukládal doslovně.** Vzory
+  používaly substituci, kterou `Import-DotEnv` neuměl, takže hodnota tokenu
+  byla doslova `${DEEPSEEK_API_KEY}` a Claude Code proti DeepSeek padal na
+  `401`. `Import-DotEnv` nyní hodnoty expanduje.
+- **`Test-Workspace.ps1` skenoval vendor a runtime soubory.** Rekurzivní
+  kontroly (UTF-8 BOM, CRLF/LF, `PSScriptAnalyzer`, komentářová nápověda)
+  procházely celý workspace a vylučovaly jen `.git`, takže po instalaci npm
+  balíčků do `bin/npm-global` hlásily `FAIL` na cizích souborech a `-Fix`
+  by na ně sahal. Nový `Get-TestableFiles` s `$script:ExcludedPathPatterns`
+  (`node_modules`, `bin/*`, `logs`, `data`, `temp`, `.git`) filtruje na
+  jednom místě a používá ho každá kontrola.
+  (`Get-TestableFiles` je záměrně v množném čísle - vrací kolekci; názvové
+  pravidlo `PSUseSingularNouns` je cíleně potlačeno u funkce.)
+
+### Added
+
+- **`Expand-DotEnvValue` v `scripts/_common.ps1`.** Podporuje `${VAR}`,
+  `$VAR`, escape `\${VAR}` / `\$VAR` (zůstane doslovně) a nechává neplatné
+  tvary (`$1`, `$-`, osamocené `$`) beze změny. Expanze je rekurzivní
+  (limit 10 úrovní). Přímý cyklus (`A=${B}`, `B=${A}`) se ohlásí jako `WARN`
+  a reference zůstane neexpandovaná; nedefinovaná `${VAR}` se ohlásí jako
+  `WARN` a nahradí prázdným řetězcem.
+- **`Get-EnvValueSource`** - jediné místo s prioritou zdrojů
+  (Process -> User -> Machine -> `.env`). Vrací `Source`, `Value`, `Found`;
+  hodnota je raw, maskuje až volající.
+- **`Import-DotEnv` je dvoufázový** (parse -> expand -> zápis do Process
+  scope), takže fungují i dopředné reference. Vrací už expandované hodnoty.
+- **`Get-AiStackInfo.ps1`** vypisuje v sekci `6. API` zdroje klíče
+  (`zdroj: Process/User/Machine/.env`, `aktivní zdroj`) a maskovaný
+  `ANTHROPIC_AUTH_TOKEN`. Sekce `5. Prostředí` kontroluje neexpandované
+  substituce.
+- **`Setup-DeepSeekStack.ps1`** detekuje klíč v prostředí před prací
+  s `.env` a ohlásí, že env přebíjí `.env`.
+- **Nová kontrola 15 „Integrita .env"** v `Test-Workspace.ps1`: `WARN` jen
+  při různých hodnotách env vs. `.env`, při chybějícím klíči nebo při
+  neexpandovaných substitucích; stejná hodnota v obou je `OK`.
+
+### Changed
+
+- **Vzory `.env.example`, `env/.env.example` a `gists/snippets/.env.example`**
+  srovnány: hlavička s pravidly a detekcí klíče, `DEEPSEEK_API_KEY`
+  zakomentovaný, dokumentace substitucí a neaktivní referenční příklad
+  `TEST_A`/`TEST_B`.
+- **`DEEPSEEK_API_KEY`: priorita env před `.env`** je nyní explicitní
+  v `Get-EnvValueSource` i v expanzi `${VAR}`.
+- **Dokumentace**: `docs/02-CONFIG.md` (priorita zdrojů a expanze,
+  `Formát .env` už neuvádí substituci jako nepodporovanou),
+  `manual/00-quickstart.md` (krok 3 ověří env), `manual/03-faq.md`
+  (nové otázky 21 a 22), `gists/0003-claude-deepseek.md`.
+- **`docs/02-CONFIG.md`** popisuje i „Sémantiku zápisu do Process scope"
+  a `docs/06-DEVIATIONS.md` má záznam o zavádějícím zdroji v diagnostice.
+
+### Known issues
+
+- **`Get-AiStackInfo` může v ojedinělých případech hlásit nepřesný zdroj
+  klíče** (`User` místo `.env`) kvůli seedu do Process scope. Funkční
+  chování je správné, jde o kosmetickou nepřesnost v reportu.
+  Detail: `docs/06-DEVIATIONS.md`.
+
 ## [1.0.1] - 2026-09-23
 
 ### Fixed

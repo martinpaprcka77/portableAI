@@ -55,9 +55,20 @@ pwsh -File scripts\Setup-DeepSeekStack.ps1 -WhatIf
 
 ## Minuta 3 — API klíč
 
+Nejdřív ověřte, zda klíč už nemáte v prostředí:
+
+```powershell
+[Environment]::GetEnvironmentVariable("DEEPSEEK_API_KEY", "User")
+```
+
+Vrátí-li hodnotu, klíč v prostředí máte a `env\.env` nechte být — env má
+přednost a Setup do `.env` nic nezapisuje.
+
+Vrátí-li `$null`, vyplňte klíč do `env\.env`:
+
 1. Otevřete `env\.env` v editoru.
-2. Najděte řádek `DEEPSEEK_API_KEY=sk-xxxx...`.
-3. Nahraďte placeholder skutečným klíčem z
+2. Najděte zakomentovaný řádek `# DEEPSEEK_API_KEY=sk-vložte-sem`.
+3. Odkomentujte ho a nahraďte hodnotu skutečným klíčem z
    https://platform.deepseek.com/api_keys.
 4. Uložte soubor.
 

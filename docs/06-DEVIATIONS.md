@@ -104,6 +104,22 @@ byla vyvrácena a že `Install-ReasonixBinary` byl z tohoto důvodu vypuštěn.
 Jedná se o vědomou odchylku od doslovného znění zadání ve prospěch
 pravdivosti auditní stopy.
 
+## Zavádějící zdroj v diagnostice po `.env` seedu do Process scope
+
+**Symptom:** `Get-AiStackInfo` hlásí „aktivní zdroj: User", ale hodnota
+reálně pochází z `.env` (protože shell vznikl před nastavením User scope).
+
+**Příčina:** `Import-DotEnv` zapisuje do Process scope, aby potomci
+dostali klíč. Snapshot před `Import-DotEnv` tuto skutečnost nezachytí,
+protože v té chvíli byl Process scope prázdný.
+
+**Rozhodnutí:** Nechat chování. Oprava by přinesla riziko chybějícího
+klíče u potomků v shellech spuštěných před nastavením User scope.
+
+**Workaround pro diagnostiku:** Pokud chceš přesný zdroj, spusť
+`Get-AiStackInfo` v novém shellu (po restartu), kde Process scope
+obsahuje aktuální hodnotu z User scope.
+
 ## Původní skripty — co bylo k dispozici
 
 Zadání (`METAPROMPT.md`, FÁZE 2) u tří skriptů říká „Zkopíruj přesně verzi

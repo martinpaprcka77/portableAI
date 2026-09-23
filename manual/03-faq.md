@@ -7,8 +7,11 @@ admin práva vyžaduje, je to chyba — nahlaste ji.
 
 ## 2. Kam se ukládá API klíč?
 
-Do `env\.env`, který je v `.gitignore`. Nikdy do shell profilu, `settings.json`
-ani do argumentů příkazové řádky. Viz [docs/05-SECURITY.md](../docs/05-SECURITY.md).
+Tam, kde už je — prioritně do systémového prostředí (User/Machine scope) nebo
+do `env\.env`, který je v `.gitignore`. Environment má přednost před `.env`;
+když je klíč v env, Setup do `.env` nic nezapisuje. Nikdy ne do shell profilu,
+`settings.json` ani do argumentů příkazové řádky.
+Viz [docs/05-SECURITY.md](../docs/05-SECURITY.md).
 
 ## 3. Co se stane, když `.env` neexistuje?
 
@@ -136,3 +139,19 @@ důsledky.
 Smažte složku `C:\portableAI\`. Nic se nezapisuje do registru ani do
 `%APPDATA%`. Nezapomeňte nejdřív zneplatnit API klíč, pokud ho jinde
 nepoužíváte.
+
+## 21. Proč Setup neaktualizoval `.env`?
+
+Protože klíč už je v prostředí (Process/User/Machine scope) a environment má
+přednost před `.env`. Setup to jen ohlásí (`DEEPSEEK_API_KEY nalezen v prostředí`)
+a `.env` nechá být, aby existoval jediný zdroj pravdy. Aktuální zdroj ověříte:
+
+```powershell
+pwsh -File scripts\Get-AiStackInfo.ps1   # sekce 6. API
+```
+
+## 22. Proč je `DEEPSEEK_API_KEY` ve vzoru zakomentovaný?
+
+`env\.env.example` má klíč zakomentovaný schválně. Pokud klíč už máte
+v prostředí (User scope), stačí vzor zkopírovat a nic nevyplňovat — env
+vyhraje. Když klíč v prostředí nemáte, odkomentujte řádek a vyplňte hodnotu.

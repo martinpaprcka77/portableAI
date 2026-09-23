@@ -533,16 +533,37 @@ else {
     $problems++
 }
 
+# Původ klíče zjišťujeme PŘED Import-DotEnv - ten plní Process scope, takže by
+# se po načtení jako zdroj jevil vždy "Process".
+$preLoadKeyScopes = [ordered]@{
+    Process = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Process')
+    User    = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+    Machine = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Machine')
+}
+
 if ($dotEnvPath -and (Test-Path -LiteralPath $dotEnvPath -PathType Leaf)) {
     $loadedValues = Import-DotEnv -Path $dotEnvPath
     Write-Log -Message ('Z .env načteno {0} klíčů.' -f $loadedValues.Count) -Level OK
 
-    $apiKeyValue = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY')
-    if ([string]::IsNullOrWhiteSpace($apiKeyValue) -or $apiKeyValue -like 'sk-xxxx*') {
+    $keySource = Get-EnvValueSource -Name 'DEEPSEEK_API_KEY' -DotEnvValues $loadedValues -ProcessValue ([string]$preLoadKeyScopes['Process'])
+    $dotEnvKeyValue = if ($loadedValues.ContainsKey('DEEPSEEK_API_KEY')) { [string]$loadedValues['DEEPSEEK_API_KEY'] } else { '' }
+
+    if ($keySource.Found -and $keySource.Source -ne '.env') {
+        # Klíč je v prostředí (Process/User/Machine) - env má přednost, do .env se nezasahuje.
+        Write-Log -Message ('DEEPSEEK_API_KEY nalezen v prostředí ({0}) - .env se neaktualizuje.' -f $keySource.Source) -Level OK
+        Write-Log -Message ('  klíč z prostředí: {0}' -f (Get-MaskedValue -Value $keySource.Value)) -Level OK
+        if (-not [string]::IsNullOrWhiteSpace($dotEnvKeyValue) -and $dotEnvKeyValue -like 'sk-xxxx*') {
+            Write-Log -Message '  v .env zůstává jen placeholder - můžete ho nechat zakomentovaný.' -Level INFO
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($dotEnvKeyValue) -and $dotEnvKeyValue -cne $keySource.Value) {
+            Write-Log -Message '  DEEPSEEK_API_KEY je i v .env, ale klíč v env přebíjí .env (hodnota se liší).' -Level INFO
+        }
+    }
+    elseif ([string]::IsNullOrWhiteSpace($dotEnvKeyValue) -or $dotEnvKeyValue -like 'sk-xxxx*') {
         Write-Log -Message 'DEEPSEEK_API_KEY není vyplněn - AI nástroje se nespustí proti modelu.' -Level WARN
     }
     else {
-        Write-Log -Message ('DEEPSEEK_API_KEY nastaven: {0}' -f (Get-MaskedValue -Value $apiKeyValue)) -Level OK
+        Write-Log -Message ('DEEPSEEK_API_KEY nastaven z .env: {0}' -f (Get-MaskedValue -Value $dotEnvKeyValue)) -Level OK
     }
 }
 

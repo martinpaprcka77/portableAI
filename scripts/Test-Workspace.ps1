@@ -502,6 +502,63 @@ function Test-PromptFrontmatter {
     return $missing.ToArray()
 }
 
+# --- Filtrování skenovaných souborů -------------------------------------------
+# Vendor a runtime cesty se neskenují: plní je npm (`node_modules`, shimy v
+# `bin/`) nebo je workspace generuje za běhu (`logs`, `data`, `temp`). Vlastní
+# kód v `scripts/` a `launcher/` vyloučený není.
+$script:ExcludedPathPatterns = @(
+    '\\node_modules\\'
+    '\\bin\\npm-global\\'
+    '\\bin\\reasonix\\'
+    '\\bin\\pi\\'
+    '\\bin\\dsh\\'
+    '\\bin\\claude\\'
+    '\\.git\\'
+    '\\logs\\'
+    '\\data\\'
+    '\\temp\\'
+    '\\tmp\\'
+)
+
+function Get-TestableFiles {
+    <#
+    .SYNOPSIS
+        Vrátí soubory workspace, které má self-test kontrolovat.
+    .DESCRIPTION
+        Rekurzivně vyhledá soubory podle vzorů `-Include` a vyřadí cesty
+        odpovídající `$script:ExcludedPathPatterns` - tedy vendor (`node_modules`)
+        a runtime adresáře (`bin`, `logs`, `data`, `temp`) plus `.git`. Vlastní
+        skripty ve `scripts/` a `launcher/` ve výsledku zůstávají.
+
+        Všechny kontroly self-testu musejí soubory hledat přes tuto funkci, aby
+        vyloučení platilo jednotně a nešlo ho v nové kontrole opomenout.
+    .PARAMETER Root
+        Kořen, od kterého se hledá.
+    .PARAMETER Include
+        Vzory souborů, např. `*.ps1`.
+    .OUTPUTS
+        System.IO.FileInfo - jeden objekt na soubor
+    .EXAMPLE
+        Get-TestableFiles -Root $root -Include @('*.ps1')
+    #>
+    [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Funkce záměrně vrací kolekci souborů; název je součástí kontraktu self-testu.')]
+    [OutputType([System.IO.FileInfo])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Root,
+
+        [Parameter(Position = 1)]
+        [string[]]$Include = @('*.ps1', '*.md', '*.json', '*.toml')
+    )
+
+    Get-ChildItem -LiteralPath $Root -Recurse -File -Include $Include -ErrorAction SilentlyContinue |
+        Where-Object {
+            $candidatePath = $_.FullName
+            -not ($script:ExcludedPathPatterns | Where-Object { $candidatePath -match $_ })
+        }
+}
+
 $root = Get-WorkspaceRoot
 $manifest = Get-WorkspaceManifest
 $checks = [System.Collections.Generic.List[object]]::new()
@@ -513,7 +570,7 @@ if (-not $Json) {
 }
 
 # --- 1. povinné adresáře ------------------------------------------------------
-Write-Log -Message 'Kontrola 1/14: povinné adresáře' -Level DEBUG
+Write-Log -Message 'Kontrola 1/15: povinné adresáře' -Level DEBUG
 $missingDirectories = @()
 foreach ($directory in $manifest.Directories) {
     if (-not (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $directory) -PathType Container)) {
@@ -544,7 +601,7 @@ else {
 }
 
 # --- 2. povinné soubory -------------------------------------------------------
-Write-Log -Message 'Kontrola 2/14: povinné soubory' -Level DEBUG
+Write-Log -Message 'Kontrola 2/15: povinné soubory' -Level DEBUG
 $missingFiles = @()
 foreach ($file in $manifest.Files) {
     if (-not (Test-Path -LiteralPath (Join-Path -Path $root -ChildPath $file) -PathType Leaf)) {
@@ -561,9 +618,8 @@ else {
 }
 
 # --- 3. UTF-8 BOM u .ps1 ------------------------------------------------------
-Write-Log -Message 'Kontrola 3/14: UTF-8 BOM' -Level DEBUG
-$powerShellFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.ps1' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\\.git\\' })
+Write-Log -Message 'Kontrola 3/15: UTF-8 BOM' -Level DEBUG
+$powerShellFiles = @(Get-TestableFiles -Root $root -Include @('*.ps1'))
 $missingBom = @()
 foreach ($file in $powerShellFiles) {
     if (-not (Test-FileBom -Path $file.FullName)) {
@@ -588,7 +644,7 @@ else {
 }
 
 # --- 4. PSScriptAnalyzer ------------------------------------------------------
-Write-Log -Message 'Kontrola 4/14: PSScriptAnalyzer' -Level DEBUG
+Write-Log -Message 'Kontrola 4/15: PSScriptAnalyzer' -Level DEBUG
 $analyzerAvailable = [bool](Get-Module -ListAvailable -Name 'PSScriptAnalyzer' | Select-Object -First 1)
 if (-not $analyzerAvailable) {
     Add-CheckResult -Results $checks -Id 'analyzer' -Name 'PSScriptAnalyzer' -Status 'WARN' -Detail 'modul není nainstalovaný - kontrola přeskočena (workspace nic neinstaluje globálně)'
@@ -609,7 +665,7 @@ else {
 }
 
 # --- 5. secrets ---------------------------------------------------------------
-Write-Log -Message 'Kontrola 5/14: secrets' -Level DEBUG
+Write-Log -Message 'Kontrola 5/15: secrets' -Level DEBUG
 $envExamplePath = Join-Path -Path $root -ChildPath '.env.example'
 $gitAvailable = Test-Command -Name 'git'
 $isGitRepo = $false
@@ -641,7 +697,7 @@ else {
 }
 
 # --- 6. Node.js ---------------------------------------------------------------
-Write-Log -Message 'Kontrola 6/14: Node.js' -Level DEBUG
+Write-Log -Message 'Kontrola 6/15: Node.js' -Level DEBUG
 $nodeAvailable = Test-Command -Name 'node'
 $requiredNodeVersion = [version]'22.19'
 if (-not $nodeAvailable) {
@@ -671,7 +727,7 @@ else {
 }
 
 # --- 7. git repozitář ---------------------------------------------------------
-Write-Log -Message 'Kontrola 7/14: git repozitář' -Level DEBUG
+Write-Log -Message 'Kontrola 7/15: git repozitář' -Level DEBUG
 if (-not $gitAvailable) {
     Add-CheckResult -Results $checks -Id 'git' -Name 'Git repozitář' -Status 'FAIL' -Detail 'git není v PATH'
 }
@@ -694,10 +750,9 @@ else {
 }
 
 # --- 8. řádkové koncovky ------------------------------------------------------
-Write-Log -Message 'Kontrola 8/14: řádkové koncovky CRLF' -Level DEBUG
+Write-Log -Message 'Kontrola 8/15: řádkové koncovky CRLF' -Level DEBUG
 $crlfFiles = @($powerShellFiles.FullName)
-$cmdFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.cmd', '*.bat' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\\.git\\' } |
+$cmdFiles = @(Get-TestableFiles -Root $root -Include @('*.cmd', '*.bat') |
         Select-Object -ExpandProperty FullName)
 $crlfTargets = @($crlfFiles + $cmdFiles | Sort-Object -Unique)
 
@@ -725,9 +780,8 @@ else {
 }
 
 # --- 9. LF u .md/.json/.toml --------------------------------------------------
-Write-Log -Message 'Kontrola 9/14: LF u textových souborů' -Level DEBUG
-$lfTargets = @(Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.json', '*.toml' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\\.git\\' } |
+Write-Log -Message 'Kontrola 9/15: LF u textových souborů' -Level DEBUG
+$lfTargets = @(Get-TestableFiles -Root $root -Include @('*.md', '*.json', '*.toml') |
         Select-Object -ExpandProperty FullName)
 
 $wrongLf = @()
@@ -754,7 +808,7 @@ else {
 }
 
 # --- 10. komentářová nápověda u .ps1 ------------------------------------------
-Write-Log -Message 'Kontrola 10/14: komentářová nápověda' -Level DEBUG
+Write-Log -Message 'Kontrola 10/15: komentářová nápověda' -Level DEBUG
 $helpProblems = @()
 foreach ($file in $powerShellFiles) {
     $missingSections = @(Test-ScriptCommentHelp -Path $file.FullName)
@@ -771,7 +825,7 @@ else {
 }
 
 # --- 11. relativní odkazy v README --------------------------------------------
-Write-Log -Message 'Kontrola 11/14: relativní odkazy v README' -Level DEBUG
+Write-Log -Message 'Kontrola 11/15: relativní odkazy v README' -Level DEBUG
 $readmePath = Join-Path -Path $root -ChildPath 'README.md'
 $linkProblems = @()
 $checkedLinks = 0
@@ -797,7 +851,7 @@ else {
 }
 
 # --- 12. struktura landing page -----------------------------------------------
-Write-Log -Message 'Kontrola 12/14: struktura landing page' -Level DEBUG
+Write-Log -Message 'Kontrola 12/15: struktura landing page' -Level DEBUG
 $landingPath = Join-Path -Path $root -ChildPath 'landing/index.html'
 if (-not (Test-Path -LiteralPath $landingPath -PathType Leaf)) {
     Add-CheckResult -Results $checks -Id 'landing-html' -Name 'Landing page (HTML)' -Status 'FAIL' -Detail 'soubor landing/index.html nenalezen'
@@ -813,7 +867,7 @@ else {
 }
 
 # --- 13. fáze v METAPROMPT.md -------------------------------------------------
-Write-Log -Message 'Kontrola 13/14: fáze METAPROMPT.md' -Level DEBUG
+Write-Log -Message 'Kontrola 13/15: fáze METAPROMPT.md' -Level DEBUG
 $metapromptPath = Join-Path -Path $root -ChildPath 'METAPROMPT.md'
 $phaseProblems = @()
 
@@ -841,7 +895,7 @@ else {
 }
 
 # --- 14. YAML frontmatter u promptů -------------------------------------------
-Write-Log -Message 'Kontrola 14/14: YAML frontmatter promptů' -Level DEBUG
+Write-Log -Message 'Kontrola 14/15: YAML frontmatter promptů' -Level DEBUG
 $promptDirectory = Join-Path -Path $root -ChildPath 'prompts'
 $frontmatterProblems = @()
 $promptFileCount = 0
@@ -850,7 +904,7 @@ if (-not (Test-Path -LiteralPath $promptDirectory -PathType Container)) {
     $frontmatterProblems += 'adresář prompts/ nenalezen'
 }
 else {
-    $promptFiles = @(Get-ChildItem -LiteralPath $promptDirectory -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue)
+    $promptFiles = @(Get-TestableFiles -Root $promptDirectory -Include @('*.md'))
     $promptFileCount = $promptFiles.Count
 
     if ($promptFileCount -eq 0) {
@@ -870,6 +924,79 @@ if ($frontmatterProblems.Count -eq 0) {
 }
 else {
     Add-CheckResult -Results $checks -Id 'prompt-frontmatter' -Name 'YAML frontmatter promptů' -Status 'FAIL' -Detail ($frontmatterProblems -join '; ')
+}
+
+# --- 15. integrita .env -------------------------------------------------------
+Write-Log -Message 'Kontrola 15/15: integrita .env' -Level DEBUG
+$keyEnvScopes = [ordered]@{
+    Process = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Process')
+    User    = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+    Machine = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'Machine')
+}
+
+$dotEnvFile = $null
+foreach ($candidate in @((Join-Path -Path $root -ChildPath 'env/.env'), (Join-Path -Path $root -ChildPath '.env'))) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        $dotEnvFile = $candidate
+        break
+    }
+}
+
+$integrityProblems = @()
+$dotEnvKeyLoaded = ''
+
+if ($dotEnvFile) {
+    $dotEnvLoaded = Import-DotEnv -Path $dotEnvFile -NoEnvironment
+    if ($dotEnvLoaded.ContainsKey('DEEPSEEK_API_KEY')) {
+        $dotEnvKeyLoaded = [string]$dotEnvLoaded['DEEPSEEK_API_KEY']
+    }
+
+    $unexpandedKeys = @($dotEnvLoaded.Keys | Where-Object { ([string]$dotEnvLoaded[$_]) -match '\$\{[A-Za-z_][A-Za-z0-9_]*\}' })
+    if ($unexpandedKeys.Count -gt 0) {
+        $integrityProblems += ('neexpandované substituce v .env: {0}' -f ($unexpandedKeys -join ', '))
+    }
+}
+
+$envKeyValue = $null
+foreach ($scopeName in @('Process', 'User', 'Machine')) {
+    $scopeValue = [string]$keyEnvScopes[$scopeName]
+    if (-not [string]::IsNullOrWhiteSpace($scopeValue)) {
+        $envKeyValue = $scopeValue
+        break
+    }
+}
+
+$hasEnvKey = -not [string]::IsNullOrWhiteSpace($envKeyValue)
+$isPlaceholder = -not [string]::IsNullOrWhiteSpace($dotEnvKeyLoaded) -and $dotEnvKeyLoaded -match '^sk-(x{8,}|vložte-sem)$'
+$hasDotEnvKey = -not [string]::IsNullOrWhiteSpace($dotEnvKeyLoaded) -and -not $isPlaceholder
+
+if ($isPlaceholder) {
+    $integrityProblems += 'DEEPSEEK_API_KEY v .env je jen placeholder ze vzoru'
+}
+
+if ($hasEnvKey -and $hasDotEnvKey) {
+    if ($envKeyValue -cne $dotEnvKeyLoaded) {
+        $integrityProblems += 'DEEPSEEK_API_KEY je v env i v .env s různou hodnotou (env má přednost)'
+    }
+}
+elseif (-not $hasEnvKey -and -not $hasDotEnvKey) {
+    $integrityProblems += 'DEEPSEEK_API_KEY není v env ani v .env'
+}
+
+if ($integrityProblems.Count -eq 0) {
+    if ($hasEnvKey -and $hasDotEnvKey) {
+        $integrityDetail = 'klíč v env i v .env se stejnou hodnotou (duplikace je v pořádku)'
+    }
+    elseif ($hasEnvKey) {
+        $integrityDetail = 'klíč je v env, .env ho neobsahuje (správně)'
+    }
+    else {
+        $integrityDetail = 'klíč je jen v .env'
+    }
+    Add-CheckResult -Results $checks -Id 'env-integrity' -Name 'Integrita .env' -Status 'OK' -Detail $integrityDetail
+}
+else {
+    Add-CheckResult -Results $checks -Id 'env-integrity' -Name 'Integrita .env' -Status 'WARN' -Detail ($integrityProblems -join '; ')
 }
 
 # --- Souhrn -------------------------------------------------------------------
