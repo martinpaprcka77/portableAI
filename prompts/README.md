@@ -52,3 +52,27 @@ použitím vyplníte. Hodí se pro opakující se zadání.
 - Nikdy nevkládejte secrets do promptu — odkazujte na `env/.env`.
 - Pokud agent poruší pravidla ze system promptu, připomeňte je odkazem na
   `prompts/00-system.md`.
+
+## Verze a kompatibilita
+
+| Co | Hodnota |
+| --- | --- |
+| Datum poslední revize | 2026-09-23 |
+| Revidovaná verze workspace | 1.0.3 |
+| Počet souborů | 11 (7 promptů + tento přehled + 3 šablony) |
+| Povinný frontmatter | `title` a `description` |
+| Nadřazený prompt | `00-system.md` — platí pro všechny ostatní |
+
+Co revize ověřila:
+
+1. **Frontmatter** — všech 11 souborů má platný YAML blok s `title`
+   a `description`; shodu ověřuje kontrola 14 v `scripts/Test-Workspace.ps1`.
+2. **Příklady a cesty** — odkazy v promptech míří na existující soubory
+   (`scaffold/01-STRUCTURE.md`, `scripts/Test-Workspace.ps1`,
+   `scripts/Get-AiStackInfo.ps1` včetně parametrů `-Json` a `-NoBanner`,
+   `logs/`, `.vscode/tasks.json`).
+3. **Komponenty** — prompty nezmiňují vyřazené komponenty. `00-system.md`
+   rozlišuje primární agent (`reasonix`) od volitelných a popisuje volitelné
+   rozšíření `pi-reasonix`.
+
+Detailní tabulka po souborech: [`docs/prompts-audit.md`](../docs/prompts-audit.md).

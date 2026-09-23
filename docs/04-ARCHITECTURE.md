@@ -57,7 +57,7 @@ launcher ──► scripts ──► logs/*.log  (každý běh zapisuje, co děl
 | `Setup-DeepSeekStack.ps1` | instalace nástrojů a seed konfigurace | ano (`-WhatIf`) |
 | `Get-AiStackInfo.ps1` | diagnostický snapshot | ne |
 | `Repair-Repo.ps1` | git atributy, koncovky, untrack | ano (`-WhatIf`) |
-| `Test-Workspace.ps1` | self-test osmi oblastí | jen s `-Fix` |
+| `Test-Workspace.ps1` | self-test patnácti oblastí | jen s `-Fix` |
 | `Menu.ps1` | interaktivní rozcestník | ne |
 
 ## Rozhodovací pravidla

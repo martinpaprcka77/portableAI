@@ -26,7 +26,7 @@
 
 | Příkaz | Co dělá | Příklad |
 | --- | --- | --- |
-| `Test-Workspace.ps1` | 8 kontrol, PASS/FAIL | `pwsh -File scripts\Test-Workspace.ps1` |
+| `Test-Workspace.ps1` | 15 kontrol, PASS/FAIL | `pwsh -File scripts\Test-Workspace.ps1` |
 | `Test-Workspace.ps1 -Fix` | opraví BOM, CRLF, dirs, git | `... -Fix` |
 | `Test-Workspace.ps1 -Fix -WhatIf` | jen ukáže, co by opravil | `... -Fix -WhatIf` |
 | `Test-Workspace.ps1 -Json` | výsledek jako JSON | `... -Json` |

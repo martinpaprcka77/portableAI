@@ -2,7 +2,7 @@
 .SYNOPSIS
     Provede self-test portable AI workspace.
 .DESCRIPTION
-    Ověří čtrnáct oblastí workspace a vrátí souhrnný stav PASS nebo FAIL:
+    Ověří patnáct oblastí workspace a vrátí souhrnný stav PASS nebo FAIL:
 
       1. povinné adresáře existují
       2. povinné soubory existují
@@ -19,6 +19,7 @@
      13. `METAPROMPT.md` obsahuje všechny fáze 0-10
      14. všechny prompty v `prompts/` mají YAML frontmatter s `title`
          a `description`
+     15. `DEEPSEEK_API_KEY` je konzistentní mezi prostředím a `.env`
 
     S přepínačem -Fix se opraví to, co opravit lze: chybějící adresáře,
     UTF-8 BOM, řádkové koncovky a chybějící git repozitář. Chybějící soubory

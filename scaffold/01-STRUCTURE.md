@@ -3,17 +3,19 @@
 ```
 C:\portableAI\
 ├── README.md              vstupní bod pro člověka
+├── README-HISTORY.md      rozcestník historických zadání
 ├── VERSION                semver workspace
 ├── CHANGELOG.md           historie změn (Keep a Changelog)
 ├── LICENSE                MIT
-├── METAPROMPT.md          zadání, podle kterého byl workspace postaven
+├── *.cmd                  root zástupci: Start, Portal, Diag, Test, Setup, Update
+├── METAPROMPT.md          historické zadání (aktuální stav viz docs/METAPROMPT-REVISION.md)
 ├── .env.example           vzor konfigurace (bez secrets)
 ├── .gitignore / .gitattributes / .editorconfig
 │
 ├── scaffold/              dokumentace samotné struktury
-├── scripts/               PowerShell automatizace
+├── scripts/               PowerShell automatizace (včetně SelfHeal.ps1)
 ├── prompts/               knihovna promptů pro AI agenty
-├── docs/                  technická dokumentace
+├── docs/                  technická dokumentace (+ adr/, history/)
 ├── manual/                uživatelský manuál
 ├── launcher/              .cmd/.ps1 spouštěče a interaktivní menu
 ├── landing/               statický HTML rozcestník

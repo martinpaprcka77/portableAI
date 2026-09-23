@@ -7,6 +7,90 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-09-23
+
+### Added
+
+- **Root zástupci pro rychlý přístup** - `Start.cmd`, `Portal.cmd`,
+  `Diag.cmd`, `Test.cmd`, `Setup.cmd` a `Update.cmd`. Každý má `@echo off`
+  + `setlocal`, detekci `pwsh.exe` s fallbackem na `powershell.exe`, obsah
+  v ASCII kvůli konzoli a koncovky CRLF. Argumenty předávají dál
+  (`Test.cmd -Fix`, `Diag.cmd -Json`, `Update.cmd -Fix`).
+- **`scripts/SelfHeal.ps1`** - self-healing kontrola a oprava odchylek
+  portable workspace: UTF-8 BOM, řádkové koncovky podle `.gitattributes`,
+  chybějící runtime adresáře, `bin/npm-global` v User PATH, `env/.env`
+  proti vzoru, `VERSION` vs `CHANGELOG.md`, duplicity v `PATH`,
+  untracked soubory, `PSScriptAnalyzer`, povinná komponenta `reasonix`
+  a escape artefakty v markdownu. Výchozí režim nic nemění; `-Fix`
+  provádí jen bezpečné idempotentní opravy, `-SkipAnalyzer` zrychlí běh
+  a `-Json` vrací strojově čitelný výstup pro CI.
+- **`docs/METAPROMPT-REVISION.md`** - revize původního zadání po realizaci:
+  tabulka vyvrácených premis, aktuální fáze a přehled toho, co vzniklo
+  mimo plán.
+- **`docs/prompts-audit.md`** a **`docs/docs-manual-audit.md`** - audity
+  promptů, dokumentace a manuálu s tabulkou po souborech.
+- **`docs/history/`** - archiv hotových zadání; přesunut tam
+  `FOLLOWUP-1-METAPROMPT.md` (dříve `FOLLOWUP-METAPROMPT.md` v kořeni).
+- **`README-HISTORY.md`** v kořeni - rozcestník, proč jsou historická
+  zadání v archivu a kde je aktuální stav workspace.
+- **Sekce „Verze a kompatibilita“** v `prompts/README.md` s datem
+  poslední revize, počtem promptů a odkazem na audit.
+
+### Changed
+
+- **`METAPROMPT.md` označen jako historický** - na začátku má poznámku
+  s odkazem na `VERSION`, `CHANGELOG.md` a `docs/METAPROMPT-REVISION.md`.
+  Obsah zadání se nepřepisuje, jen se jednoznačně určuje jeho role.
+- **`METAPROMPT.md` a `FOLLOWUP-METAPROMPT.md`: obnoven čitelný markdown.**
+  Oba soubory měly v repu artefakty vzniklé kopírováním textu: escapované
+  markdown znaky (`\#` → `#`, `\*\*` → `**`), zdvojená zpětná lomítka
+  v cestách (`C:\\portableAI\\`), zdvojené nové řádky (odstavce oddělovaly
+  tři prázdné řádky) a odsazení zapsané jako entita `&#x20;`. Dokumenty se
+  proto renderovaly doslovně jako `\# ROLE`. **Text se nezměnil** - mění se
+  jen escape artefakty a výsledné formátování.
+- **`README.md` aktualizováno** - nové sekce „Rychlý start“ (tabulka
+  zástupců), „Struktura workspace“ (zkrácený strom) a „Verze“ (odkazy na
+  `VERSION`, `CHANGELOG.md`, revizi zadání a auditní stopu).
+- **`prompts/00-system.md`** - sekce „Dostupné nástroje“ rozlišuje primární
+  agent `reasonix` od volitelných, popisuje instalaci do `bin/npm-global`
+  a volitelné rozšíření `pi-reasonix`.
+- **`scaffold/directory-tree.txt`** přegenerován podle skutečné struktury
+  po přesunu historického zadání a přidání nových souborů.
+
+### Fixed
+
+- **Zastaralé údaje v dokumentaci** (viz `docs/docs-manual-audit.md`):
+  - `manual/01-cheatsheet.md` uváděl „8 kontrol“ u `Test-Workspace.ps1` -
+    realita je 15. Nejzastaralejší místo v dokumentaci.
+  - `docs/04-ARCHITECTURE.md` uváděl „self-test osmi oblastí“ - opraveno
+    na patnáct.
+  - `docs/06-DEVIATIONS.md` uváděl „nyní 14 kontrol“ - doplněna 15.
+    kontrola („Integrita .env“) a revizní poznámka u počtu odkazů
+    na landing page.
+  - `docs/03-TROUBLESHOOTING.md` citoval `analyzátor: FAIL`, ale kontrola
+    se jmenuje `PSScriptAnalyzer`.
+  - `landing/index.html` zobrazoval `v1.0.1` - srovnáno s `VERSION`.
+- **Zastaralé komentáře ve skriptech** (jen comment-based help, žádná
+  změna logiky ani parametrů):
+  - `scripts/Test-Workspace.ps1`: „Ověří čtrnáct oblastí“ → „patnáct“,
+    do výčtu doplněna kontrola 15 („Integrita .env“).
+  - `scripts/Setup-DeepSeekStack.ps1`: „Postupuje ve čtyřech krocích“ →
+    „v pěti“ (skript loguje `Krok N/5`).
+- **`CHANGELOG.md`**: doplněny chybějící odkazy na verze `1.0.2` a `1.0.3`
+  a srovnán odkaz `[Unreleased]`, který mířil na `v1.0.1`.
+
+### Verified
+
+- `Test-Workspace.ps1` → `WORKSPACE TEST: PASS` (15/15 kontrol).
+- `SelfHeal.ps1` → report `OK: 8 | WARN: 3 | FAIL: 0` (bez `-Fix` nic nemění).
+- `SelfHeal.ps1 -WhatIf` i `SelfHeal.ps1 -Fix` ověřeny v sandbox kopii
+  workspace: `-WhatIf` nezměnil žádný soubor, `-Fix` opravil BOM,
+  koncovky oběma směry, vytvořil chybějící adresáře i `env/.env`
+  a byl idempotentní při druhém běhu.
+- `Invoke-ScriptAnalyzer -Path .\scripts\ -Recurse -Severity Warning, Error`
+  → prázdný výstup (7 skriptů včetně `SelfHeal.ps1`).
+- Všech 11 zástupců `.cmd` (5 v `launcher/` + 6 v kořeni) má CRLF a ASCII obsah.
+
 ## [1.0.2] - 2026-09-23
 
 ### Fixed
@@ -148,7 +232,9 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 - Full documentation + manual
 - 5 gists with reusable snippets
 
-[Unreleased]: https://example.invalid/portable-ai/compare/v1.0.1...HEAD
+[Unreleased]: https://example.invalid/portable-ai/compare/v1.0.3...HEAD
+[1.0.3]: https://example.invalid/portable-ai/compare/v1.0.2...v1.0.3
+[1.0.2]: https://example.invalid/portable-ai/compare/v1.0.1...v1.0.2
 [1.0.1]: https://example.invalid/portable-ai/compare/v1.0.0...v1.0.1
 [1.0.0]: https://example.invalid/portable-ai/releases/tag/v1.0.0
 

@@ -15,10 +15,28 @@ backendem, jejich konfiguraci, diagnostiku, opravné skripty, knihovnu promptů,
 dokumentaci, manuál a rozcestník. Nic se neinstaluje globálně a nic nepotřebuje
 administrátorská práva.
 
-## Quick start
+## Rychlý start
+
+Nejkratší cesta jsou zástupci v kořeni workspace. Dvojklik i spuštění
+z terminálu fungují stejně:
+
+| Zástupce | Co udělá | Volá |
+| --- | --- | --- |
+| [`Setup.cmd`](Setup.cmd) | nainstaluje a nakonfiguruje AI stack | `scripts/Setup-DeepSeekStack.ps1` |
+| [`Start.cmd`](Start.cmd) | otevře interaktivní menu | `launcher/Start-PortableAI.cmd` |
+| [`Diag.cmd`](Diag.cmd) | vypíše diagnostický snapshot | `scripts/Get-AiStackInfo.ps1` |
+| [`Test.cmd`](Test.cmd) | spustí self-test workspace | `scripts/Test-Workspace.ps1` |
+| [`Update.cmd`](Update.cmd) | zkontroluje odchylky a nabídne opravu | `scripts/SelfHeal.ps1` |
+| [`Portal.cmd`](Portal.cmd) | otevře landing page v prohlížeči | `landing/index.html` |
+
+Zástupci předávají argumenty dál, takže funguje i `Test.cmd -Fix`,
+`Diag.cmd -Json` nebo `Update.cmd -Fix`. Bez argumentů nic nemění —
+`Update.cmd` běží v režimu „jen report“.
+
+Klasický postup:
 
 1. Rozbalte ZIP nebo naklonujte repozitář do `C:\portableAI\` (funguje i jiná cesta).
-2. Spusťte `launcher\Start-PortableAI.cmd`.
+2. Spusťte `Start.cmd` (nebo `launcher\Start-PortableAI.cmd`).
 3. V menu zvolte `[1] Setup`, potom `[2] Diagnostics`.
 4. Doplňte `DEEPSEEK_API_KEY` do `env\.env` a spusťte `[1] Setup` znovu.
 
@@ -28,7 +46,8 @@ Podrobný pětiminutový průvodce: [`manual/00-quickstart.md`](manual/00-quicks
 
 | Komponenta | Popis | Cesta |
 | --- | --- | --- |
-| Skripty | setup, diagnostika, oprava repa, self-test | `scripts/` |
+| Zástupci | rychlý přístup k setupu, diagnostice, self-testu a údržbě | `*.cmd` v kořeni |
+| Skripty | setup, diagnostika, oprava repa, self-test, self-heal | `scripts/` |
 | Prompty | 7 promptů + 3 šablony pro AI agenty | `prompts/` |
 | Dokumentace | architektura, instalace, konfigurace, security, ADR | `docs/` |
 | Manuál | quickstart, cheatsheet, workflows, FAQ, glosář | `manual/` |
@@ -37,11 +56,31 @@ Podrobný pětiminutový průvodce: [`manual/00-quickstart.md`](manual/00-quicks
 | Gisty | snippety, one-linery a konfigurační šablony | `gists/` |
 | Konfigurace | vzory `.env`, runtime data, lokální npm prefix | `env/`, `data/`, `bin/` |
 
-## Struktura
+## Struktura workspace
 
-Vygenerovaný strom, který odpovídá realitě na disku:
-[`scaffold/directory-tree.txt`](scaffold/directory-tree.txt).
-Popis vrstev a vlastnictví složek: [`scaffold/01-STRUCTURE.md`](scaffold/01-STRUCTURE.md).
+Zkrácený přehled; úplný strom včetně každého souboru je v
+[`scaffold/directory-tree.txt`](scaffold/directory-tree.txt):
+
+```
+portableAI\
+├── *.cmd                    root zástupci: Start, Portal, Diag, Test, Setup, Update
+├── README.md                vstupní bod
+├── README-HISTORY.md        rozcestník historie zadání
+├── VERSION / CHANGELOG.md / LICENSE
+├── METAPROMPT.md            historické zadání (označeno jako historické)
+├── scaffold/                dokumentace struktury + vygenerovaný strom
+├── scripts/                 _common.ps1, Setup-*, Get-*, Repair-*, Test-*, SelfHeal.ps1
+├── prompts/                 knihovna promptů pro AI agenty
+├── docs/                    technická dokumentace (včetně adr/ a history/)
+├── manual/                  uživatelský manuál
+├── launcher/                .cmd spouštěče + Menu.ps1
+├── landing/                 statický HTML rozcestník
+├── gists/                   snippety a konfigurační šablony
+├── env/ logs/ data/ bin/    konfigurace a runtime (negitované)
+└── .vscode/                 doporučené nastavení editoru
+```
+
+Vrstvy a vlastnictví složek popisuje [`scaffold/01-STRUCTURE.md`](scaffold/01-STRUCTURE.md).
 
 ## Požadavky
 
@@ -76,10 +115,33 @@ Tabulka symptom → příčina → řešení: [`docs/03-TROUBLESHOOTING.md`](doc
 ## Kontrola stavu
 
 ```powershell
+Test.cmd                                     # = pwsh -File scripts\Test-Workspace.ps1
+Diag.cmd                                     # = pwsh -File scripts\Get-AiStackInfo.ps1
+Update.cmd                                   # jen report odchylek, nic nemění
+Test.cmd -Fix                                # opraví encoding, koncovky, git init
+Update.cmd -Fix                              # opraví encoding, koncovky, adresáře, PATH
+```
+
+Bez zástupců:
+
+```powershell
 pwsh -File scripts\Test-Workspace.ps1        # self-test, PASS/FAIL
 pwsh -File scripts\Get-AiStackInfo.ps1       # diagnostický snapshot
-pwsh -File scripts\Test-Workspace.ps1 -Fix   # opraví encoding, koncovky, git init
+pwsh -File scripts\SelfHeal.ps1              # report odchylek (self-heal)
 ```
+
+## Verze
+
+Aktuální verze je v [`VERSION`](VERSION); historie změn je v [`CHANGELOG.md`](CHANGELOG.md).
+
+| Kde hledat | Co tam je |
+| --- | --- |
+| [`VERSION`](VERSION) | aktuální semver workspace |
+| [`CHANGELOG.md`](CHANGELOG.md) | co se změnilo a proč, po verzích |
+| [`docs/METAPROMPT-REVISION.md`](docs/METAPROMPT-REVISION.md) | revize původního zadání: vyvrácené premisy a co vzniklo mimo plán |
+| [`docs/06-DEVIATIONS.md`](docs/06-DEVIATIONS.md) | detailní auditní stopa odchylek od zadání |
+| [`README-HISTORY.md`](README-HISTORY.md) | rozcestník historických zadání |
+| [`docs/history/FOLLOWUP-1-METAPROMPT.md`](docs/history/FOLLOWUP-1-METAPROMPT.md) | archivované zadání follow-upu #1 |
 
 ## Bezpečnost
 
@@ -88,4 +150,4 @@ Secrets patří výhradně do `env\.env`, který je v `.gitignore`. Podrobnosti:
 
 ## Licence
 
-MIT — viz [`LICENSE`](LICENSE). Historie změn: [`CHANGELOG.md`](CHANGELOG.md).
+MIT — viz [`LICENSE`](LICENSE).

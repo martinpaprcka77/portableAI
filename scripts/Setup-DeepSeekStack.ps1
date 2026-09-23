@@ -2,7 +2,7 @@
 .SYNOPSIS
     Nainstaluje a nakonfiguruje DeepSeek AI stack v portable workspace.
 .DESCRIPTION
-    Postupuje ve čtyřech krocích a každý z nich je možné přeskočit:
+    Postupuje v pěti krocích a každý z nich je možné přeskočit:
 
       1. příprava adresářů (env, data, bin, logs)
       2. detekce `.env` a jeho vytvoření ze vzoru, pokud chybí

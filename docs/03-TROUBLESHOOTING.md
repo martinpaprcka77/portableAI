@@ -29,7 +29,7 @@ pwsh -File scripts\Test-Workspace.ps1
 | 16 | Workspace nefunguje po zkopírování na USB | Absolutní cesta v konfiguraci | Hledejte `C:\portableAI` v `env\`, `data\`, `.vscode\` a nahraďte relativní cestou |
 | 17 | `UnauthorizedAccessException` při zápisu do `logs/` | Soubor drží jiný proces nebo je čistě jen pro čtení | Zavřete ostatní procesy; workspace nepotřebuje admin práva |
 | 18 | Agent „nevidí“ proměnné z `.env` | Byl spuštěn v jiném procesu bez načtení `.env` | Spouštějte agenty přes `launcher\Launch-*.cmd`, které `.env` načítají |
-| 19 | `Test-Workspace` hlásí `analyzátor: FAIL` | Reálný nález PSScriptAnalyzeru | Přečtěte nález v detailu a opravte skript |
+| 19 | `Test-Workspace` hlásí `PSScriptAnalyzer: ... FAIL` | Reálný nález PSScriptAnalyzeru | Přečtěte nález v detailu a opravte skript |
 | 20 | Vše funguje, ale `Test-Workspace` hlásí `chybí soubor: ...` | Nekompletní rozbalení ZIPu | Rozbalte archiv znovu se zachováním struktury |
 
 ## Systematický postup
