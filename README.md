@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml/badge.svg)](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.9-blue.svg)](VERSION)
 [![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg?logo=windows&logoColor=white)](https://www.microsoft.com/windows/windows-11)
 [![DeepSeek](https://img.shields.io/badge/DeepSeek-Ready-4B6BFB.svg)](https://api-docs.deepseek.com/)
@@ -64,7 +64,9 @@ Zkrácený přehled; úplný strom včetně každého souboru je v
 [`scaffold/directory-tree.txt`](scaffold/directory-tree.txt):
 
 Pro regeneraci stromu: `pwsh -File scripts\Update-Tree.ps1` (report bez
-zápisu: `-WhatIf`).
+zápisu: `-WhatIf`, vynucené přegenerování včetně data: `-Force`). Běžné
+spuštění je bezpečné — dokud se strom nezmění a hlavička není starší než
+30 dní, nezapíše nic.
 
 ```
 portableAI\
@@ -124,7 +126,7 @@ Test.cmd                                     # = pwsh -File scripts\Test-Workspa
 Diag.cmd                                     # = pwsh -File scripts\Get-AiStackInfo.ps1
 Update.cmd                                   # jen report odchylek, nic nemění
 Test.cmd -Fix                                # opraví encoding, koncovky, git init
-Update.cmd -Fix                              # opraví encoding, koncovky, adresáře, PATH
+Update.cmd -Fix                              # opraví encoding, koncovky, adresáře, PATH, strom
 ```
 
 Bez zástupců:

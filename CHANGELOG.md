@@ -7,6 +7,41 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-09-23
+
+### Added
+
+- **SelfHeal kontrola 12 umí strom přegenerovat (`-Fix`).** Když je
+  `scaffold/directory-tree.txt` zastaralý (hlavička starší než 30 dní nebo
+  chybějící klíčový záznam), `SelfHeal.ps1 -Fix` spustí
+  `scripts/Update-Tree.ps1` v samostatném procesu, stav po opravě znovu
+  vyhodnotí a do logu zapíše „Strom přegenerován (hlavička obnovena)“.
+  Vyhodnocení stromu je v nové funkci `Get-DirectoryTreeState`, takže se
+  před opravou i po ní používá stejná logika.
+
+### Fixed
+
+- **`Update-Tree.ps1` už nevyrábí jednořádkový diff při každém spuštění.**
+  Hlavička s datem se přepisovala vždy, takže i regenerace beze změny
+  obsahu změnila jeden řádek. Nyní se porovnává obsah včetně hlavičky
+  s původním datem: když se nic nezměnilo a hlavička není starší než
+  30 dní, skript nezapíše nic. Datum se obnoví, když je hlavička starší
+  než 30 dní nebo když se změnil obsah (či verze workspace v hlavičce).
+- **`-Json` výstup SelfHealu zůstává strojově čitelný.** Nová zpráva
+  o přegenerování stromu se v `-Json` módu nevypisuje do konzole (šla by
+  na stdout a rozbila by parsování); informace je v `Detailu` nálezu.
+
+### Changed
+
+- **`scripts/Update-Tree.ps1`: nový přepínač `-Force`** - zapíše strom
+  vždy, i když se obsah ani datum nemění (vynucené nové datum).
+- **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.9`
+  (badge v `README.md` na `1.0.9`).
+- **`README.md`** - regenerace stromu zmiňuje `-Force` a idempotenci;
+  `Update.cmd -Fix` uvádí i obnovu stromu.
+- **`docs/04-ARCHITECTURE.md`** - `Update-Tree.ps1` v tabulce komponent
+  mění stav i s `-Force`.
+
 ### Fixed
 
 - **SelfHeal kontrola 12: `-0 dní` u stáří stromu.** Hlavička `directory-tree.txt`

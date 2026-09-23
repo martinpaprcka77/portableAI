@@ -57,7 +57,7 @@ launcher ──► scripts ──► logs/*.log  (každý běh zapisuje, co děl
 | `Setup-DeepSeekStack.ps1` | instalace nástrojů a seed konfigurace | ano (`-WhatIf`) |
 | `Get-AiStackInfo.ps1` | diagnostický snapshot | ne |
 | `Repair-Repo.ps1` | git atributy, koncovky, untrack | ano (`-WhatIf`) |
-| `Update-Tree.ps1` | regenerace `scaffold/directory-tree.txt` | ano (`-WhatIf`) |
+| `Update-Tree.ps1` | regenerace `scaffold/directory-tree.txt` | ano (`-WhatIf`, `-Force`) |
 | `Test-Workspace.ps1` | self-test šestnácti oblastí | jen s `-Fix` |
 | `Menu.ps1` | interaktivní rozcestník | ne |
 | `.github/workflows/ci.yml` | CI: SelfHeal → Setup → Test-Workspace na Windows runneru | ne (běží na GitHubu) |

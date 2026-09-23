@@ -16,5 +16,5 @@ kontrakt: co kde bydlí, proč, a co se nesmí přesunout.
 3. **Secrets patří do `.env`** (gitignored), do repa jde pouze `.env.example`.
 4. **Runtime data** (`logs/`, `data/`, `bin/`) nejsou verzovaná — jen `.gitkeep`.
 5. Po každé změně struktury přegeneruj `directory-tree.txt`
-   (`pwsh -File scripts\Update-Tree.ps1`) a spusť
-   `scripts/Test-Workspace.ps1`.
+   (`pwsh -File scripts\Update-Tree.ps1` - když se nic nezmění, nezapíše
+   nic) a spusť `scripts/Test-Workspace.ps1`.

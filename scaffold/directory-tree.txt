@@ -1,8 +1,8 @@
 # scaffold/directory-tree.txt
 #
 # Automaticky generovaný strom portable AI workspace (jen verzované soubory).
-# Vygenerováno: 2026-09-23 22:53:58 (lokální čas)
-# Verze workspace: 1.0.8
+# Vygenerováno: 2026-09-23 23:16:35 (lokální čas)
+# Verze workspace: 1.0.9
 # Vynecháno: .git, node_modules, .reasonix, temp, bin/npm-global, logs/*.log, data (kromě .gitkeep), .env, session-*.md, *.zip, Thumbs.db, desktop.ini
 # Vygeneruje: pwsh -File scripts\Update-Tree.ps1   (-WhatIf vypíše jen rozdíl)
 #

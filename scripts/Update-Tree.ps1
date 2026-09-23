@@ -18,24 +18,40 @@
     (kontrola 12) hlásí strom jako zastaralý, když v něm chybí klíčové
     soubory nebo je hlavička starší než 30 dní.
 
-    Výchozí režim soubor přepíše. `-WhatIf` jen vypíše, co by se změnilo.
+    Regenerace je obsah-idempotentní: když se strom nezměnil a hlavička
+    není starší než 30 dní, skript nezapíše nic - žádný jednořádkový diff
+    kvůli datu. Datum se obnoví, když se obsah (nebo hlavička včetně verze)
+    změnil, když je hlavička starší než 30 dní, nebo vždy s `-Force`.
+    Díky tomu stačí po `WARN` z kontroly 12 spustit skript bez parametrů.
+
+    `-WhatIf` jen vypíše, co by se změnilo.
 
     Návratový kód: 0 = strom je aktuální nebo byl zapsán.
+.PARAMETER Force
+    Zapíše strom vždy, i když se obsah ani datum nemění (např. když chcete
+    vynutit nové datum bez čekání na 30 dní).
 .PARAMETER WhatIf
     Zobrazí rozdíl proti současnému stromu, ale soubor nezmění.
 .EXAMPLE
     .\Update-Tree.ps1
 .EXAMPLE
     .\Update-Tree.ps1 -WhatIf
+.EXAMPLE
+    .\Update-Tree.ps1 -Force
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
-param()
+param(
+    [Parameter()]
+    [switch]$Force
+)
 
 . (Join-Path -Path $PSScriptRoot -ChildPath '_common.ps1')
 
 $script:ExcludedDirectories = @('.git', 'node_modules', '.reasonix', 'temp', 'tmp')
 $script:PlaceholderDirectories = @('bin', 'logs', 'data')
 $script:ExcludedFiles = @('.env', '*.log', '*.zip', 'session-*.md', 'Thumbs.db', 'desktop.ini', '.DS_Store')
+# Stejný práh používá SelfHeal kontrola 12 - při změně držte obojí v souladu.
+$script:HeaderMaxAgeDays = 30
 $script:PlaceholderFileName = '.gitkeep'
 
 function Test-ExcludedDirectory {
@@ -206,6 +222,37 @@ function Get-TreeHeader {
     )
 }
 
+function Get-TreeHeaderTimestamp {
+    <#
+    .SYNOPSIS
+        Přečte datum generování z hlavičky stromu.
+    .DESCRIPTION
+        Vrací `[datetime]` z řádku `# Vygenerováno: <datum>`, nebo `$null`,
+        když v hlavičce datum není. Stejný tvar parsuje i `SelfHeal.ps1`
+        (kontrola 12); tady se podle něj rozhoduje, jestli je potřeba
+        obnovit datum.
+    #>
+    [CmdletBinding()]
+    [OutputType([datetime])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Content
+    )
+
+    $match = [regex]::Match($Content, '(?m)^#\s*Vygenerováno:\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)')
+    if (-not $match.Success) {
+        return $null
+    }
+
+    $parsed = [datetime]::MinValue
+    if (-not [datetime]::TryParse($match.Groups[1].Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
+        return $null
+    }
+
+    return $parsed
+}
+
 # --- sestavení stromu ---------------------------------------------------------
 $root = Get-WorkspaceRoot
 $relativePath = 'scaffold/directory-tree.txt'
@@ -217,46 +264,80 @@ if (Test-Path -LiteralPath $versionPath -PathType Leaf) {
     $version = (Get-Content -LiteralPath $versionPath -Raw).Trim()
 }
 
-$generatedAt = Get-Date
-$lines = [System.Collections.Generic.List[string]]::new()
-foreach ($headerLine in (Get-TreeHeader -RelativePath $relativePath -Version $version -GeneratedAt $generatedAt)) {
-    [void]$lines.Add($headerLine)
-}
-[void]$lines.Add((Split-Path -Path $root -Leaf) + '\')
+# Tělo stromu je deterministické - hlavička se generuje zvlášť, aby se dalo
+# porovnat, jestli se změnilo něco jiného než datum.
+$bodyLines = [System.Collections.Generic.List[string]]::new()
+[void]$bodyLines.Add((Split-Path -Path $root -Leaf) + '\')
 foreach ($treeLine in (Get-TreeLine -Path $root)) {
-    [void]$lines.Add($treeLine)
+    [void]$bodyLines.Add($treeLine)
 }
 
-$newContent = (($lines -join "`n") + "`n")
+$generatedAt = Get-Date
+$newLines = @(Get-TreeHeader -RelativePath $relativePath -Version $version -GeneratedAt $generatedAt) + @($bodyLines)
+$newContent = (($newLines -join "`n") + "`n")
 
-$oldContent = ''
 $hasExistingTree = Test-Path -LiteralPath $treePath -PathType Leaf
+$existingContent = ''
+$existingGeneratedAt = $null
 if ($hasExistingTree) {
-    $oldContent = (Get-Content -LiteralPath $treePath -Raw) -replace "`r`n", "`n"
+    $existingContent = (Get-Content -LiteralPath $treePath -Raw) -replace "`r`n", "`n"
+    $existingGeneratedAt = Get-TreeHeaderTimestamp -Content $existingContent
 }
+
+$headerAgeDays = 0.0
+if ($null -ne $existingGeneratedAt) {
+    $headerAgeDays = ((Get-Date) - $existingGeneratedAt).TotalDays
+    if ($headerAgeDays -lt 0) {
+        # Hlavička nese lokální čas generátoru; na stroji v jiném pásmu
+        # (například UTC runner v CI) vyjde stáří mírně do minusu.
+        $headerAgeDays = 0
+    }
+}
+
+$headerStale = ($null -eq $existingGeneratedAt) -or ($headerAgeDays -gt $script:HeaderMaxAgeDays)
+
+# Rozdíl jen v datu: kdyby obsah i hlavička (verze, seznam vynechaných cest)
+# odpovídaly, ale s původním datem - pak není co řešit a soubor se nezapíše.
+$onlyHeaderDateDiffers = $false
+if ($hasExistingTree -and $null -ne $existingGeneratedAt) {
+    $comparisonLines = @(Get-TreeHeader -RelativePath $relativePath -Version $version -GeneratedAt $existingGeneratedAt) + @($bodyLines)
+    $onlyHeaderDateDiffers = ($existingContent -eq ((($comparisonLines -join "`n") + "`n")))
+}
+
+$shouldWrite = (-not $hasExistingTree) -or $Force -or (-not $onlyHeaderDateDiffers) -or $headerStale
 
 Write-Banner -Title 'Portable AI Workspace' -Subtitle ('Directory tree - {0:yyyy-MM-dd HH:mm:ss}{1}' -f $generatedAt, $(if ($WhatIfPreference) { ' (whatif - nic se nemění)' } else { '' }))
 Write-Log -Message ('Workspace: {0}' -f $root) -Level INFO
 Write-Log -Message ('Cíl: {0} (verze {1})' -f $relativePath, $(if ($version) { $version } else { 'neznámá' })) -Level INFO
 
-if ($oldContent -eq $newContent) {
-    Write-Log -Message 'Strom je aktuální - není co měnit.' -Level OK
+if (-not $shouldWrite) {
+    Write-Log -Message ('Strom je aktuální - obsah i hlavička bez změny (vygenerováno {0:yyyy-MM-dd}, {1:N0} dní). Nic se nezapisuje.' -f $existingGeneratedAt, $headerAgeDays) -Level OK
     exit 0
+}
+
+if (-not $hasExistingTree) {
+    Write-Log -Message ('Důvod zápisu: soubor {0} neexistuje.' -f $relativePath) -Level STEP
+}
+elseif ($Force) {
+    Write-Log -Message 'Důvod zápisu: vynuceno přes -Force.' -Level STEP
+}
+elseif (-not $onlyHeaderDateDiffers) {
+    Write-Log -Message 'Důvod zápisu: změnil se obsah nebo hlavička stromu.' -Level STEP
+}
+else {
+    Write-Log -Message ('Důvod zápisu: hlavička je starší než {0} dní ({1:N0} dní) - obnovuje se jen datum.' -f $script:HeaderMaxAgeDays, $headerAgeDays) -Level STEP
 }
 
 $added = @()
 $removed = @()
 if ($hasExistingTree) {
-    $differences = @(Compare-Object -ReferenceObject ($oldContent -split "`n") -DifferenceObject ($newContent -split "`n"))
+    $differences = @(Compare-Object -ReferenceObject ($existingContent -split "`n") -DifferenceObject ($newContent -split "`n"))
     $added = @($differences | Where-Object { $_.SideIndicator -eq '=>' } | ForEach-Object { $_.InputObject } | Where-Object { $_ -ne '' })
     $removed = @($differences | Where-Object { $_.SideIndicator -eq '<=' } | ForEach-Object { $_.InputObject } | Where-Object { $_ -ne '' })
-}
-
-if ($hasExistingTree) {
     Write-Log -Message ('Rozdíl proti současnému stromu: +{0} / -{1} řádků (bez ohledu na pořadí).' -f $added.Count, $removed.Count) -Level STEP
 }
 else {
-    Write-Log -Message ('Soubor {0} neexistuje - vytvoří se nový ({1} řádků).' -f $relativePath, $lines.Count) -Level STEP
+    Write-Log -Message ('Soubor {0} neexistuje - vytvoří se nový ({1} řádků).' -f $relativePath, $newLines.Count) -Level STEP
 }
 
 foreach ($line in $added) {
@@ -268,9 +349,15 @@ foreach ($line in $removed) {
 
 if ($PSCmdlet.ShouldProcess($treePath, 'Zapsat přegenerovaný directory tree')) {
     [System.IO.File]::WriteAllText($treePath, $newContent, (New-Object System.Text.UTF8Encoding($false)))
-    Write-Log -Message ('Zapsáno: {0} ({1} řádků, UTF-8 bez BOM, LF).' -f $relativePath, $lines.Count) -Level OK
+    if ($onlyHeaderDateDiffers -and -not $Force) {
+        Write-Log -Message ('Zapsáno: {0} (obnoveno jen datum hlavičky).' -f $relativePath) -Level OK
+    }
+    else {
+        Write-Log -Message ('Zapsáno: {0} ({1} řádků, UTF-8 bez BOM, LF).' -f $relativePath, $newLines.Count) -Level OK
+    }
+
     exit 0
 }
 
-Write-Log -Message ('WhatIf: {0} by se zapsal ({1} řádků). Soubor zůstal beze změny.' -f $relativePath, $lines.Count) -Level STEP
+Write-Log -Message ('WhatIf: {0} by se zapsal ({1} řádků). Soubor zůstal beze změny.' -f $relativePath, $newLines.Count) -Level STEP
 exit 0

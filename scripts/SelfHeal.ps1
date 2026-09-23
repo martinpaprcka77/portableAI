@@ -20,14 +20,15 @@
      10. povinná komponenta `reasonix` v `bin/npm-global`
      11. escape artefakty v markdownu (`\#` na začátku řádku, `\*\*bold\*\*`)
      12. `scaffold/directory-tree.txt` je aktuální (obsahuje klíčové soubory
-         a jeho hlavička není starší než 30 dní)
+         a jeho hlavička není starší než 30 dní); `-Fix` strom přegeneruje
 
     Výchozí režim nic nemění. `-Fix` provádí jen bezpečné a idempotentní
-    opravy: BOM, řádkové koncovky, chybějící adresáře, User PATH a chybějící
-    `env/.env` ze vzoru. Kombinace `-Fix -WhatIf` jen vypíše, co by se
-    změnilo. Obsah existujících souborů se nikdy nepřepisuje - ani strom
-    adresářů (kontrola 12 jen reportuje; strom přegeneruje
-    `scripts/Update-Tree.ps1`).
+    opravy: BOM, řádkové koncovky, chybějící adresáře, User PATH,
+    chybějící `env/.env` ze vzoru a přegenerování `scaffold/directory-tree.txt`
+    (kontrola 12). Kombinace `-Fix -WhatIf` jen vypíše, co by se změnilo.
+    Obsah ostatních existujících souborů se nikdy nepřepisuje - výjimkou
+    je právě strom adresářů, který se generuje znovu skriptem
+    `scripts/Update-Tree.ps1`.
 
     Návratový kód: 0 = bez FAIL, 1 = alespoň jeden FAIL.
 .PARAMETER Fix
@@ -481,6 +482,90 @@ function Get-MarkdownEscapeArtifact {
     return $findings
 }
 
+function Get-DirectoryTreeState {
+    <#
+    .SYNOPSIS
+        Vyhodnotí stav `scaffold/directory-tree.txt` pro kontrolu 12.
+    .DESCRIPTION
+        Vrací hashtable s klíči:
+
+          Exists      - soubor existuje
+          Problems    - seznam nalezených problémů (prázdný seznam = OK)
+          GeneratedAt - datum z hlavičky, nebo `$null`
+          AgeDays     - stáří hlavičky ve dnech (nikdy záporné)
+
+        Strom vypisuje jen názvy položek (ne celé cesty), proto se klíčové
+        soubory hledají jako jméno na řádku s větví stromu. Funkce se volá
+        dvakrát: před opravou a po ní.
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter()]
+        [string[]]$KeyFile = @('ci.yml', 'SECURITY.md', 'VERSION'),
+
+        [Parameter()]
+        [int]$MaxAgeDays = 30
+    )
+
+    $problems = [System.Collections.Generic.List[string]]::new()
+    $state = @{
+        Exists      = $false
+        Problems    = $problems
+        GeneratedAt = $null
+        AgeDays     = 0.0
+    }
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        [void]$problems.Add('soubor chybí')
+        return $state
+    }
+
+    $state.Exists = $true
+    $text = Get-Content -LiteralPath $Path -Raw
+
+    foreach ($key in $KeyFile) {
+        if ($text -notmatch ('(?m)^[^\r\n]*──\s+' + [regex]::Escape($key) + '\s*$')) {
+            [void]$problems.Add(('chybí záznam {0}' -f $key))
+        }
+    }
+
+    $generatedAt = [datetime]::MinValue
+    $generatedMatch = [regex]::Match($text, '(?m)^#\s*Vygenerováno:\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)')
+    $hasGeneratedAt = $false
+    if ($generatedMatch.Success) {
+        $hasGeneratedAt = [datetime]::TryParse(
+            $generatedMatch.Groups[1].Value,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::None,
+            [ref]$generatedAt
+        )
+    }
+
+    if (-not $hasGeneratedAt) {
+        [void]$problems.Add('v hlavičce chybí datum generování')
+        return $state
+    }
+
+    $state.GeneratedAt = $generatedAt
+    $ageDays = ((Get-Date) - $generatedAt).TotalDays
+    if ($ageDays -lt 0) {
+        # Hlavička nese lokální čas generátoru; na stroji v jiném pásmu
+        # (například UTC runner v CI) vyjde stáří mírně do minusu.
+        $ageDays = 0
+    }
+
+    $state.AgeDays = $ageDays
+    if ($ageDays -gt $MaxAgeDays) {
+        [void]$problems.Add(('hlavička je starší než {0} dní ({1:N0} dní)' -f $MaxAgeDays, $ageDays))
+    }
+
+    return $state
+}
+
 # Adresáře, které se neskenují: plní je npm nebo si je workspace generuje
 # za běhu. Stejná množina jako v `Test-Workspace.ps1`.
 $script:ExcludedPathPatterns = @(
@@ -897,59 +982,57 @@ $treeRelativePath = 'scaffold/directory-tree.txt'
 $treePath = Join-Path -Path $root -ChildPath $treeRelativePath
 $treeHint = 'Spusťte pwsh -File scripts\Update-Tree.ps1'
 $treeMaxAgeDays = 30
+$treeRepaired = $false
+$treeState = Get-DirectoryTreeState -Path $treePath -MaxAgeDays $treeMaxAgeDays
 
-# Strom vypisuje jen názvy položek (ne celé cesty), proto se hledá jméno
-# souboru na řádku s větví stromu.
-$treeKeyFiles = @('ci.yml', 'SECURITY.md', 'VERSION')
+if ($treeState.Problems.Count -gt 0 -and $canFix) {
+    $updateTreePath = Join-Path -Path $root -ChildPath 'scripts/Update-Tree.ps1'
+    if (-not (Test-Path -LiteralPath $updateTreePath -PathType Leaf)) {
+        [void]$treeState.Problems.Add('chybí scripts/Update-Tree.ps1')
+    }
+    elseif ($PSCmdlet.ShouldProcess($treePath, 'Přegenerovat directory tree')) {
+        # Samostatný proces: `exit` v generátoru nesmí ukončit self-heal
+        # a `-Json` výstup musí zůstat čistý (stejný vzor jako v Menu.ps1).
+        $hostExecutable = 'powershell.exe'
+        if (Test-Command -Name 'pwsh') {
+            $hostExecutable = 'pwsh.exe'
+        }
 
-if (-not (Test-Path -LiteralPath $treePath -PathType Leaf)) {
-    Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'WARN' -Detail ('{0} chybí' -f $treeRelativePath) -Hint $treeHint
+        $updateOutput = @(& $hostExecutable -NoProfile -ExecutionPolicy Bypass -File $updateTreePath 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log -Message ('Update-Tree.ps1 skončilo s kódem {0}: {1}' -f $LASTEXITCODE, (($updateOutput -join ' | ').Trim())) -Level DEBUG
+            [void]$treeState.Problems.Add(('přegenerování stromu selhalo (exit {0})' -f $LASTEXITCODE))
+        }
+        else {
+            if ($updateOutput.Count -gt 0) {
+                Write-Log -Message ('Update-Tree.ps1: {0}' -f (($updateOutput -join ' | ').Trim())) -Level DEBUG
+            }
+
+            # Po opravě se stav přehodnotí - datum i obsah stromu se mohly změnit.
+            $treeState = Get-DirectoryTreeState -Path $treePath -MaxAgeDays $treeMaxAgeDays
+            if ($treeState.Problems.Count -eq 0) {
+                $treeRepaired = $true
+
+                # V -Json módu se nesmí nic vypsat do konzole (rozbilo by to
+                # parsování JSON); informace jde do Detailu nálezu.
+                if (-not $Json) {
+                    Write-Log -Message 'Strom přegenerován (hlavička obnovena).' -Level OK
+                }
+            }
+        }
+    }
+}
+
+if ($treeState.Problems.Count -eq 0) {
+    $treeDetail = '{0}: klíčové soubory přítomny, vygenerováno {1:yyyy-MM-dd} ({2:N0} dní)' -f $treeRelativePath, $treeState.GeneratedAt, $treeState.AgeDays
+    if ($treeRepaired) {
+        $treeDetail = '{0}; strom přegenerován (hlavička obnovena)' -f $treeDetail
+    }
+
+    Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'OK' -Detail $treeDetail
 }
 else {
-    $treeText = Get-Content -LiteralPath $treePath -Raw
-    $treeProblems = [System.Collections.Generic.List[string]]::new()
-
-    foreach ($keyFile in $treeKeyFiles) {
-        if ($treeText -notmatch ('(?m)^[^\r\n]*──\s+' + [regex]::Escape($keyFile) + '\s*$')) {
-            [void]$treeProblems.Add(('chybí záznam {0}' -f $keyFile))
-        }
-    }
-
-    $generatedAt = [datetime]::MinValue
-    $generatedMatch = [regex]::Match($treeText, '(?m)^#\s*Vygenerováno:\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)')
-    $hasGeneratedAt = $false
-    if ($generatedMatch.Success) {
-        $hasGeneratedAt = [datetime]::TryParse(
-            $generatedMatch.Groups[1].Value,
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::None,
-            [ref]$generatedAt
-        )
-    }
-
-    $treeAgeDays = 0.0
-    if (-not $hasGeneratedAt) {
-        [void]$treeProblems.Add('v hlavičce chybí datum generování')
-    }
-    else {
-        $treeAgeDays = ((Get-Date) - $generatedAt).TotalDays
-        if ($treeAgeDays -lt 0) {
-            # Hlavička nese lokální čas generátoru; na stroji v jiném pásmu
-            # (například UTC runner v CI) vyjde stáří mírně do minusu.
-            $treeAgeDays = 0
-        }
-
-        if ($treeAgeDays -gt $treeMaxAgeDays) {
-            [void]$treeProblems.Add(('hlavička je starší než {0} dní ({1:N0} dní)' -f $treeMaxAgeDays, $treeAgeDays))
-        }
-    }
-
-    if ($treeProblems.Count -eq 0) {
-        Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'OK' -Detail ('{0}: klíčové soubory přítomny, vygenerováno {1:yyyy-MM-dd} ({2:N0} dní)' -f $treeRelativePath, $generatedAt, $treeAgeDays)
-    }
-    else {
-        Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'WARN' -Detail ('tree je zastaralý - {0}' -f ($treeProblems -join '; ')) -Hint $treeHint
-    }
+    Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'WARN' -Detail ('tree je zastaralý - {0}' -f ($treeState.Problems -join '; ')) -Hint $treeHint
 }
 
 # --- Souhrn -------------------------------------------------------------------
