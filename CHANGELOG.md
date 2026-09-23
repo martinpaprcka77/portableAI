@@ -7,6 +7,40 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-09-23
+
+### Added
+
+- **`scripts/Update-Tree.ps1` - generátor `scaffold/directory-tree.txt`.**
+  Projde workspace s exclusion patterns (`node_modules`, `bin`, `.git`,
+  `logs`, `data`, `temp`, `.reasonix`) a zapíše strom ve formátu, který
+  soubor už používá (adresáře před soubory, řazení InvariantCulture, takže
+  je strom stejný na českém i anglickém systému i v CI). Hlavička nese
+  datum generování, verzi workspace a odkaz na generátor. `-WhatIf` vypíše
+  jen rozdíl proti současnému stromu.
+- **SelfHeal kontrola 12: „Directory tree je aktuální“** - ověří, že
+  `scaffold/directory-tree.txt` existuje, obsahuje klíčové soubory
+  (`.github/workflows/ci.yml`, `SECURITY.md`, `VERSION`) a že hlavička
+  není starší než 30 dní. Jinak `WARN` s hintem na `Update-Tree.ps1`.
+  Kontroly 1-12 jsou přečíslované (`Self-heal n/12`).
+
+### Fixed
+
+- **`scaffold/directory-tree.txt` přegenerován** - chyběl celý `.github/`
+  (včetně `workflows/ci.yml` z verze 1.0.5), `SECURITY.md` a
+  `scripts/Update-Tree.ps1`; strom tak neodpovídal realitě, přestože ho
+  `scaffold/00-README.md` označuje za kontrakt.
+
+### Changed
+
+- **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.8`
+  (badge v `README.md` na `1.0.8`).
+- **`README.md`** - sekce Struktura workspace a Kontrola stavu odkazují na
+  regeneraci stromu (`pwsh -File scripts\Update-Tree.ps1`).
+- **`docs/04-ARCHITECTURE.md`** - `Update-Tree.ps1` v tabulce komponent.
+- **`scaffold/00-README.md`** - konvence 5 uvádí konkrétní příkaz pro
+  regeneraci stromu.
+
 ## [1.0.7] - 2026-09-23
 
 ### Added

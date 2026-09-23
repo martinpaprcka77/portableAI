@@ -19,11 +19,15 @@
       9. PSScriptAnalyzer nad `scripts/` a `launcher/`
      10. povinná komponenta `reasonix` v `bin/npm-global`
      11. escape artefakty v markdownu (`\#` na začátku řádku, `\*\*bold\*\*`)
+     12. `scaffold/directory-tree.txt` je aktuální (obsahuje klíčové soubory
+         a jeho hlavička není starší než 30 dní)
 
     Výchozí režim nic nemění. `-Fix` provádí jen bezpečné a idempotentní
     opravy: BOM, řádkové koncovky, chybějící adresáře, User PATH a chybějící
     `env/.env` ze vzoru. Kombinace `-Fix -WhatIf` jen vypíše, co by se
-    změnilo. Obsah existujících souborů se nikdy nepřepisuje.
+    změnilo. Obsah existujících souborů se nikdy nepřepisuje - ani strom
+    adresářů (kontrola 12 jen reportuje; strom přegeneruje
+    `scripts/Update-Tree.ps1`).
 
     Návratový kód: 0 = bez FAIL, 1 = alespoň jeden FAIL.
 .PARAMETER Fix
@@ -511,7 +515,7 @@ if (-not $Json) {
 }
 
 # --- 1. UTF-8 BOM u .ps1 ------------------------------------------------------
-Write-Log -Message 'Self-heal 1/11: UTF-8 BOM u .ps1' -Level DEBUG
+Write-Log -Message 'Self-heal 1/12: UTF-8 BOM u .ps1' -Level DEBUG
 $scriptTargets = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in @('scripts', 'launcher')) {
     $directoryPath = Join-Path -Path $root -ChildPath $relativeDirectory
@@ -558,7 +562,7 @@ else {
 }
 
 # --- 2. řádkové koncovky podle .gitattributes ---------------------------------
-Write-Log -Message 'Self-heal 2/11: řádkové koncovky podle .gitattributes' -Level DEBUG
+Write-Log -Message 'Self-heal 2/12: řádkové koncovky podle .gitattributes' -Level DEBUG
 $eolRules = Get-EolRule -Path (Join-Path -Path $root -ChildPath '.gitattributes')
 $eolInclude = @($eolRules | ForEach-Object { $_.Pattern } | Sort-Object -Unique)
 
@@ -641,7 +645,7 @@ else {
 }
 
 # --- 3. runtime adresáře ------------------------------------------------------
-Write-Log -Message 'Self-heal 3/11: runtime adresáře' -Level DEBUG
+Write-Log -Message 'Self-heal 3/12: runtime adresáře' -Level DEBUG
 $requiredDirectories = @('bin/npm-global', 'data/reasonix', 'logs')
 $missingDirectories = [System.Collections.Generic.List[string]]::new()
 foreach ($relative in $requiredDirectories) {
@@ -679,7 +683,7 @@ else {
 }
 
 # --- 4. bin/npm-global v User PATH --------------------------------------------
-Write-Log -Message 'Self-heal 4/11: User PATH' -Level DEBUG
+Write-Log -Message 'Self-heal 4/12: User PATH' -Level DEBUG
 $npmPrefixPath = Join-Path -Path $root -ChildPath 'bin/npm-global'
 $userPathRaw = [Environment]::GetEnvironmentVariable('PATH', 'User')
 $userPathEntries = @()
@@ -715,7 +719,7 @@ else {
 }
 
 # --- 5. env/.env proti vzoru --------------------------------------------------
-Write-Log -Message 'Self-heal 5/11: env/.env' -Level DEBUG
+Write-Log -Message 'Self-heal 5/12: env/.env' -Level DEBUG
 $existingDotEnv = $null
 foreach ($relative in @('env/.env', '.env')) {
     $candidatePath = Join-Path -Path $root -ChildPath $relative
@@ -760,7 +764,7 @@ else {
 }
 
 # --- 6. VERSION vs CHANGELOG --------------------------------------------------
-Write-Log -Message 'Self-heal 6/11: VERSION vs CHANGELOG' -Level DEBUG
+Write-Log -Message 'Self-heal 6/12: VERSION vs CHANGELOG' -Level DEBUG
 $versionPath = Join-Path -Path $root -ChildPath 'VERSION'
 $changelogPath = Join-Path -Path $root -ChildPath 'CHANGELOG.md'
 
@@ -781,7 +785,7 @@ else {
 }
 
 # --- 7. duplicity v PATH ------------------------------------------------------
-Write-Log -Message 'Self-heal 7/11: duplicity v PATH' -Level DEBUG
+Write-Log -Message 'Self-heal 7/12: duplicity v PATH' -Level DEBUG
 $pathEntries = @($env:PATH -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 $seenEntries = [System.Collections.Generic.HashSet[string]]::new()
 $duplicateEntries = [System.Collections.Generic.List[string]]::new()
@@ -800,7 +804,7 @@ else {
 }
 
 # --- 8. git status ------------------------------------------------------------
-Write-Log -Message 'Self-heal 8/11: git status' -Level DEBUG
+Write-Log -Message 'Self-heal 8/12: git status' -Level DEBUG
 if (-not (Test-Command -Name 'git')) {
     Add-HealFinding -Results $findings -Id 'git-status' -Name 'Git status' -Status 'WARN' -Detail 'git není v PATH'
 }
@@ -822,7 +826,7 @@ else {
 }
 
 # --- 9. PSScriptAnalyzer ------------------------------------------------------
-Write-Log -Message 'Self-heal 9/11: PSScriptAnalyzer' -Level DEBUG
+Write-Log -Message 'Self-heal 9/12: PSScriptAnalyzer' -Level DEBUG
 $analyzerDirectories = @()
 foreach ($relative in @('scripts', 'launcher')) {
     $directoryPath = Join-Path -Path $root -ChildPath $relative
@@ -855,7 +859,7 @@ else {
 }
 
 # --- 10. povinná komponenta reasonix ------------------------------------------
-Write-Log -Message 'Self-heal 10/11: povinná komponenta reasonix' -Level DEBUG
+Write-Log -Message 'Self-heal 10/12: povinná komponenta reasonix' -Level DEBUG
 $requiredComponentShim = Join-Path -Path $npmPrefixPath -ChildPath 'reasonix.cmd'
 if (Test-Path -LiteralPath $requiredComponentShim -PathType Leaf) {
     Add-HealFinding -Results $findings -Id 'component-reasonix' -Name 'Komponenta reasonix' -Status 'OK' -Detail 'nalezena v bin/npm-global'
@@ -868,7 +872,7 @@ else {
 }
 
 # --- 11. escape artefakty v markdownu ----------------------------------------
-Write-Log -Message 'Self-heal 11/11: escape artefakty v markdownu' -Level DEBUG
+Write-Log -Message 'Self-heal 11/12: escape artefakty v markdownu' -Level DEBUG
 $markdownTargets = @(Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue |
         Where-Object { -not (Test-ExcludedPath -Path $_.FullName) })
 
@@ -885,6 +889,61 @@ if ($escapeArtifacts.Count -eq 0) {
 else {
     $escapePreview = @($escapeArtifacts | Select-Object -First 5)
     Add-HealFinding -Results $findings -Id 'markdown-escape' -Name 'Escapovaný markdown' -Status 'WARN' -Detail ('nálezů: {0} ({1})' -f $escapeArtifacts.Count, ($escapePreview -join ', ')) -Hint 'Odstraňte escape artefakty - postup viz docs/METAPROMPT-REVISION.md'
+}
+
+# --- 12. directory tree je aktuální -------------------------------------------
+Write-Log -Message 'Self-heal 12/12: directory tree je aktuální' -Level DEBUG
+$treeRelativePath = 'scaffold/directory-tree.txt'
+$treePath = Join-Path -Path $root -ChildPath $treeRelativePath
+$treeHint = 'Spusťte pwsh -File scripts\Update-Tree.ps1'
+$treeMaxAgeDays = 30
+
+# Strom vypisuje jen názvy položek (ne celé cesty), proto se hledá jméno
+# souboru na řádku s větví stromu.
+$treeKeyFiles = @('ci.yml', 'SECURITY.md', 'VERSION')
+
+if (-not (Test-Path -LiteralPath $treePath -PathType Leaf)) {
+    Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'WARN' -Detail ('{0} chybí' -f $treeRelativePath) -Hint $treeHint
+}
+else {
+    $treeText = Get-Content -LiteralPath $treePath -Raw
+    $treeProblems = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($keyFile in $treeKeyFiles) {
+        if ($treeText -notmatch ('(?m)^[^\r\n]*──\s+' + [regex]::Escape($keyFile) + '\s*$')) {
+            [void]$treeProblems.Add(('chybí záznam {0}' -f $keyFile))
+        }
+    }
+
+    $generatedAt = [datetime]::MinValue
+    $generatedMatch = [regex]::Match($treeText, '(?m)^#\s*Vygenerováno:\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)')
+    $hasGeneratedAt = $false
+    if ($generatedMatch.Success) {
+        $hasGeneratedAt = [datetime]::TryParse(
+            $generatedMatch.Groups[1].Value,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::None,
+            [ref]$generatedAt
+        )
+    }
+
+    $treeAgeDays = 0.0
+    if (-not $hasGeneratedAt) {
+        [void]$treeProblems.Add('v hlavičce chybí datum generování')
+    }
+    else {
+        $treeAgeDays = ((Get-Date) - $generatedAt).TotalDays
+        if ($treeAgeDays -gt $treeMaxAgeDays) {
+            [void]$treeProblems.Add(('hlavička je starší než {0} dní ({1:N0} dní)' -f $treeMaxAgeDays, $treeAgeDays))
+        }
+    }
+
+    if ($treeProblems.Count -eq 0) {
+        Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'OK' -Detail ('{0}: klíčové soubory přítomny, vygenerováno {1:yyyy-MM-dd} ({2:N0} dní)' -f $treeRelativePath, $generatedAt, $treeAgeDays)
+    }
+    else {
+        Add-HealFinding -Results $findings -Id 'directory-tree' -Name 'Directory tree je aktuální' -Status 'WARN' -Detail ('tree je zastaralý - {0}' -f ($treeProblems -join '; ')) -Hint $treeHint
+    }
 }
 
 # --- Souhrn -------------------------------------------------------------------

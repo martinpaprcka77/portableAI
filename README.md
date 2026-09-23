@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml/badge.svg)](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)](VERSION)
 [![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg?logo=windows&logoColor=white)](https://www.microsoft.com/windows/windows-11)
 [![DeepSeek](https://img.shields.io/badge/DeepSeek-Ready-4B6BFB.svg)](https://api-docs.deepseek.com/)
@@ -49,7 +49,7 @@ Podrobný pětiminutový průvodce: [`manual/00-quickstart.md`](manual/00-quicks
 | Komponenta | Popis | Cesta |
 | --- | --- | --- |
 | Zástupci | rychlý přístup k setupu, diagnostice, self-testu a údržbě | `*.cmd` v kořeni |
-| Skripty | setup, diagnostika, oprava repa, self-test, self-heal | `scripts/` |
+| Skripty | setup, diagnostika, oprava repa, self-test, self-heal, generátor stromu | `scripts/` |
 | Prompty | 7 promptů + 3 šablony pro AI agenty | `prompts/` |
 | Dokumentace | architektura, instalace, konfigurace, security, ADR | `docs/` |
 | Manuál | quickstart, cheatsheet, workflows, FAQ, glosář | `manual/` |
@@ -63,6 +63,9 @@ Podrobný pětiminutový průvodce: [`manual/00-quickstart.md`](manual/00-quicks
 Zkrácený přehled; úplný strom včetně každého souboru je v
 [`scaffold/directory-tree.txt`](scaffold/directory-tree.txt):
 
+Pro regeneraci stromu: `pwsh -File scripts\Update-Tree.ps1` (report bez
+zápisu: `-WhatIf`).
+
 ```
 portableAI\
 ├── *.cmd                    root zástupci: Start, Portal, Diag, Test, Setup, Update
@@ -71,7 +74,7 @@ portableAI\
 ├── VERSION / CHANGELOG.md / LICENSE
 ├── METAPROMPT.md            historické zadání (označeno jako historické)
 ├── scaffold/                dokumentace struktury + vygenerovaný strom
-├── scripts/                 _common.ps1, Setup-*, Get-*, Repair-*, Test-*, SelfHeal.ps1
+├── scripts/                 _common.ps1, Setup-*, Get-*, Repair-*, Test-*, SelfHeal.ps1, Update-Tree.ps1
 ├── prompts/                 knihovna promptů pro AI agenty
 ├── docs/                    technická dokumentace (včetně adr/ a history/)
 ├── manual/                  uživatelský manuál
@@ -130,6 +133,7 @@ Bez zástupců:
 pwsh -File scripts\Test-Workspace.ps1        # self-test, PASS/FAIL
 pwsh -File scripts\Get-AiStackInfo.ps1       # diagnostický snapshot
 pwsh -File scripts\SelfHeal.ps1              # report odchylek (self-heal)
+pwsh -File scripts\Update-Tree.ps1           # přegeneruje scaffold\directory-tree.txt
 ```
 
 V repozitáři běží stejné kontroly i v CI (`.github/workflows/ci.yml`, Windows
