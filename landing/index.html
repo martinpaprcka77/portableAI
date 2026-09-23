@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portable AI Workspace — samostatné AI vývojové prostředí pro Windows 11 bez admin práv a bez globálních instalací.">
+  <meta property="og:title" content="Portable AI Workspace">
+  <meta property="og:description" content="Samostatné AI vývojové prostředí pro Windows 11 — AI coding agenti s DeepSeek backendem, konfigurace, diagnostika a opravné skripty v jedné složce. Bez admin práv.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="cs_CZ">
+  <meta name="twitter:card" content="summary">
   <title>Portable AI Workspace</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
@@ -76,7 +81,7 @@
         <div class="grid">
           <article class="card">
             <h3><a href="../scripts/_common.ps1">Skripty</a></h3>
-            <p>Setup, diagnostika, oprava repozitáře, self-test a self-heal. Generátor stromu adresářů <code>Update-Tree.ps1</code>. Idempotentní, s <code>-WhatIf</code>.</p>
+            <p>Setup, diagnostika, oprava repozitáře, self-test a self-heal <code>SelfHeal.ps1</code>. Generátor stromu adresářů <code>Update-Tree.ps1</code>. Idempotentní, s <code>-WhatIf</code>.</p>
             <p class="path">scripts/</p>
           </article>
 
@@ -160,7 +165,9 @@
             <code>pwsh -File scripts\Test-Workspace.ps1 -Fix -WhatIf</code>
             (náhled oprav) a teprve pak <code>-Fix</code> bez <code>-WhatIf</code>.
             Self-heal <code>Update.cmd -Fix</code> navíc přegeneruje strom adresářů,
-            když je zastaralý.
+            když je zastaralý. Po každé opravě ověřte
+            <code>Test-Workspace.ps1</code> bez <code>-Fix</code> — musí vrátit
+            <code>PASS</code>.
           </p>
         </div>
       </div>

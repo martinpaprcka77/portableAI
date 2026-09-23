@@ -42,8 +42,12 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
   vždy, i když se obsah ani datum nemění (vynucené nové datum).
 - **`landing/index.html` srovnána s realitou 1.0.9** - odkaz na
   `SECURITY.md` (navigace, karta Dokumentace, patička) a zmínka o CI,
-  self-healu a generátoru stromu (`Update-Tree.ps1`) v kartách Skripty
-  a Scaffold i v sekci „Jak začít“; callout uvádí i `Update.cmd -Fix`.
+  self-healu (`SelfHeal.ps1`) a generátoru stromu (`Update-Tree.ps1`)
+  v kartách Skripty a Scaffold i v sekci „Jak začít“; callout uvádí
+  `Update.cmd -Fix` i ověření `Test-Workspace.ps1` bez `-Fix`.
+  Přidány Open Graph meta tagy (`og:title`, `og:description`,
+  `og:type`, `og:locale`) a `twitter:card`; `og:url` a `og:image`
+  záměrně chybí - vyžadují absolutní URL, tedy až při hostování stránky.
 - **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.9`
   (badge v `README.md` na `1.0.9`).
 - **`README.md`** - regenerace stromu zmiňuje `-Force` a idempotenci;
