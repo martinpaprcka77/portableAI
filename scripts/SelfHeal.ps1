@@ -933,6 +933,12 @@ else {
     }
     else {
         $treeAgeDays = ((Get-Date) - $generatedAt).TotalDays
+        if ($treeAgeDays -lt 0) {
+            # Hlavička nese lokální čas generátoru; na stroji v jiném pásmu
+            # (například UTC runner v CI) vyjde stáří mírně do minusu.
+            $treeAgeDays = 0
+        }
+
         if ($treeAgeDays -gt $treeMaxAgeDays) {
             [void]$treeProblems.Add(('hlavička je starší než {0} dní ({1:N0} dní)' -f $treeMaxAgeDays, $treeAgeDays))
         }

@@ -196,7 +196,7 @@ function Get-TreeHeader {
         ('# {0}' -f $RelativePath)
         '#'
         '# Automaticky generovaný strom portable AI workspace (jen verzované soubory).'
-        ('# Vygenerováno: {0}' -f $GeneratedAt.ToString('yyyy-MM-dd HH:mm:ss'))
+        ('# Vygenerováno: {0} (lokální čas)' -f $GeneratedAt.ToString('yyyy-MM-dd HH:mm:ss'))
         ('# Verze workspace: {0}' -f $(if ($Version) { $Version } else { 'neznámá' }))
         ('# Vynecháno: {0}' -f $skipped)
         '# Vygeneruje: pwsh -File scripts\Update-Tree.ps1   (-WhatIf vypíše jen rozdíl)'

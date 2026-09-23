@@ -7,6 +7,13 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **SelfHeal kontrola 12: `-0 dní` u stáří stromu.** Hlavička `directory-tree.txt`
+  nese lokální čas generátoru, takže na runneru v UTC vycházelo stáří mírně
+  do minusu a report zobrazoval `-0 dní`. Záporné stáří se nyní zobrazuje
+  jako `0 dní` a generátor čas v hlavičce označuje jako lokální.
+
 ## [1.0.8] - 2026-09-23
 
 ### Added
