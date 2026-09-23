@@ -130,6 +130,10 @@ pwsh -File scripts\Get-AiStackInfo.ps1       # diagnostický snapshot
 pwsh -File scripts\SelfHeal.ps1              # report odchylek (self-heal)
 ```
 
+V repozitáři běží stejné kontroly i v CI (`.github/workflows/ci.yml`, Windows
+runner): `Setup-DeepSeekStack.ps1 -SkipOptional` → `SelfHeal.ps1 -Json` →
+`Test-Workspace.ps1`. Detail: [`docs/04-ARCHITECTURE.md`](docs/04-ARCHITECTURE.md).
+
 ## Verze
 
 Aktuální verze je v [`VERSION`](VERSION); historie změn je v [`CHANGELOG.md`](CHANGELOG.md).

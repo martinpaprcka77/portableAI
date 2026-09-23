@@ -1,0 +1,86 @@
+# CI portable AI workspace.
+#
+# Beží na Windows runneru (skripty jsou Windows-specifické: cmd shimy,
+# User PATH, CRLF koncovky). Pořadí kroků kopíruje reálné použití:
+#
+#   1. Setup-DeepSeekStack.ps1 -SkipOptional -SkipConfig -SkipCheck
+#        - připraví workspace jako uživatel: vytvoří runtime adresáře
+#          (bin/npm-global, data/reasonix, logs), env/.env ze vzoru a
+#          nainstaluje Required komponentu (reasonix) do bin/npm-global.
+#          Ověřuje, že se instalace nepřeskočí kvůli globálnímu PATH (Bug #2).
+#   2. SelfHeal.ps1 -Json
+#        - report odchylek nad připraveným workspace; FAIL shodí build.
+#          (Na holém klonu by FAIL hlásila kontrola "Runtime adresáře",
+#          protože workspace ještě není nastavený - proto běží až po Setupu.)
+#   3. Test-Workspace.ps1
+#        - self-test 16 kontrol včetně kontroly 16 (Required komponenty
+#          v workspace); FAIL shodí build.
+#
+# `-SkipOptional` v kroku 1 je záměr: build netestuje volitelné balíčky, ale
+# přesně tu cestu, která dřív nefungovala (instalace do workspace místo
+# přeskočení kvůli globálnímu PATH). Komponenty mimo workspace se v kontrole
+# 16 hlásí jako INFO, takže PASS neohrozí.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  workspace:
+    name: Self-test workspace (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install PSScriptAnalyzer
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -ErrorAction SilentlyContinue
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
+            Write-Warning 'PSScriptAnalyzer se nepodařilo nainstalovat - kontrola 4 se přeskočí (WARN).'
+          }
+
+      - name: Setup (Required komponenta do workspace)
+        run: |
+          ./scripts/Setup-DeepSeekStack.ps1 -SkipOptional -SkipConfig -SkipCheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Self-heal (report)
+        # Report se záměrně ukládá mimo workspace ($env:RUNNER_TEMP), aby
+        # v repu nezůstal soubor, který self-test kontroluje (control 9
+        # vyžaduje u .json LF koncovky, Tee-Object zapisuje CRLF).
+        run: |
+          $reportPath = Join-Path -Path $env:RUNNER_TEMP -ChildPath 'selfheal.json'
+          ./scripts/SelfHeal.ps1 -Json | Tee-Object -FilePath $reportPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Workspace self-test
+        run: |
+          ./scripts/Test-Workspace.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: workspace-report
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/selfheal.json
+            logs/*.log

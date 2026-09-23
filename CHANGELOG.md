@@ -7,6 +7,30 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-09-23
+
+### Added
+
+- **GitHub Actions CI** - `.github/workflows/ci.yml` na Windows runneru
+  spouští stejné kontroly jako lokální workflow, v pořadí jako reálné
+  použití: `Setup-DeepSeekStack.ps1 -SkipOptional -SkipConfig -SkipCheck`
+  (vytvoří runtime adresáře, `env/.env` ze vzoru a nainstaluje `Required`
+  komponentu `reasonix` do `bin/npm-global`) → `SelfHeal.ps1 -Json`
+  (report odchylek) → `Test-Workspace.ps1` (16 kontrol). `FAIL` v kterémkoli
+  kroku shodí build; artefaktem je `selfheal.json` a setup log.
+  SelfHeal běží až po Setupu, protože na holém klonu hlásí `FAIL` kontrola
+  „Runtime adresáře" - workspace ještě není nastavený.
+  `-SkipOptional` je záměr: build netestuje volitelné balíčky, ale přesně tu
+  cestu, která dřív nefungovala (instalace do workspace místo přeskočení
+  kvůli globálnímu `PATH`, Bug #2). Workflow jde spustit i ručně
+  (`workflow_dispatch`), takže se dá ověřit z `gh` bez pushnutí commitu.
+- **Odkaz na CI v dokumentaci** - `README.md` (sekce „Kontrola stavu“)
+  a `docs/04-ARCHITECTURE.md` (tabulka komponent).
+
+### Changed
+
+- **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.5`.
+
 ## [1.0.4] - 2026-09-23
 
 ### Added
