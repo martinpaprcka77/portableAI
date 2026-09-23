@@ -43,22 +43,37 @@ Nebo použijte `scripts\Setup-DeepSeekStack.ps1`, který to dělá automaticky
 
 ## Konfigurace
 
-Pi čte stejné proměnné prostředí jako Reasonix, takže stačí sdílený `.env`:
+Z `.env` potřebuje Pi jen klíč; endpoint a model si řídí sám (settings.json,
+`/model`). Zapnutí rozšíření stačí jedním přepínačem:
 
 ```dotenv
 DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-REASONIX_CONFIG_DIR=./data/reasonix
-REASONIX_MODEL=deepseek-chat
-REASONIX_REASONING_EFFORT=medium
 PORTABLEAI_PI_EXTENSIONS=1
 ```
 
-## Proč `REASONIX_CONFIG_DIR`
+Rozšíření `pi-reasonix` má vlastní přepínače — výchozí hodnoty fungují, měňte
+je jen vědomě:
 
-Pi i Reasonix tak sdílejí jeden `config.toml` v `data/reasonix/`. Když
-nakonfigurujete model na jednom místě, projeví se to u obou — a po přesunu
-workspace na jiný disk se konfigurace přenese s ním.
+| Proměnná | Výchozí | Význam |
+| --- | --- | --- |
+| `PI_REASONIX_ENABLED` | `1` | `0` rozšíření vůbec neaktivuje |
+| `PI_REASONIX_CACHE` | `1` | cache-first smyčka: stabilizace prefixu (byte 0 = systémový prompt) |
+| `PI_REASONIX_COST` | `1` | cost control: kompakce dlouhých tool výsledků |
+| `PI_REASONIX_METRICS` | `1` | sběr cache a cost metrik |
+| `REASONIX_RESULT_CAP_TOKENS` | `3000` | strop tokenů na jeden tool výsledek (kompakce drží hlavu i ocas) |
+| `REASONIX_SCAVENGE` | `0` | `1` doplní tool calls vytažené z `<think>` |
+
+## Cache a cena v Pi
+
+Rozšíření dělá v Pi totéž, co dělá Reasonix nativně: hlídá, aby prefix requestu
+zůstal byte-stabilní (z toho plynou cache hity), a aby dlouhé tool výstupy
+nepolykaly kontext. Aktivaci i živé statistiky zobrazíte příkazem
+`/reasonix-status` — zajímavé jsou `Prefix stable`, `Hit ratio` (cíl 85-97 %)
+a `Results compacted`.
+
+Model se v Pi volí přes `/model`; držte se názvů z aktuálního ceníku
+(`deepseek-flash`, `deepseek-v4-flash`, `deepseek-v4-pro`) — viz
+`docs/02-CONFIG.md`, sekce „Reasonix: cachování a cena“.
 
 ## Ověření
 
@@ -87,7 +102,7 @@ Nic se nezapisuje mimo složku workspace.
 | --- | --- |
 | `pi` není rozpoznán | `bin\npm-global` není v `PATH`; spusťte launcher, ten ho přidá |
 | `EACCES` / `EPERM` při instalaci | běžíte v chráněném adresáři; přesuňte workspace mimo `Program Files` |
-| Pi ignoruje konfiguraci | není nastavený `REASONIX_CONFIG_DIR` |
+| Pi ignoruje rozšíření | session neběží na DeepSeek modelu (`deepseek-*`), nebo je `PI_REASONIX_ENABLED=0` |
 | Rozšíření se nenainstalovalo | v `.env` není `PORTABLEAI_PI_EXTENSIONS=1`, nebo jste spustili setup s `-SkipOptional` |
 | Rozšíření hlásí `command failed: npm run build \|\| true` | chybí `--ignore-scripts` (viz „Instalace“ výše); `dist/` je v balíčku už hotové |
 | V `node_modules` je druhá kopie Pi agenta | chybí `--legacy-peer-deps` (peer závislosti `pi-reasonix` jsou volné `*`) |

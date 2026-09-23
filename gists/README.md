@@ -20,7 +20,7 @@ Složka [`snippets/`](snippets/) obsahuje konfigurační soubory ke zkopírován
 | Soubor | Cíl |
 | --- | --- |
 | [`.env.example`](snippets/.env.example) | `env\.env` |
-| [`reasonix.toml`](snippets/reasonix.toml) | `data\reasonix\config.toml` |
+| [`reasonix.toml`](snippets/reasonix.toml) | `data\reasonix\config.toml`, odtud do `<Reasonix home>\config.toml` |
 | [`models.json`](snippets/models.json) | `data\reasonix\models.json` |
 | [`settings.json`](snippets/settings.json) | `.vscode\settings.json` |
 

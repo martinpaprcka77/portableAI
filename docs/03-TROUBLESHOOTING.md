@@ -34,6 +34,9 @@ pwsh -File scripts\Test-Workspace.ps1
 | 18 | Agent „nevidí“ proměnné z `.env` | Byl spuštěn v jiném procesu bez načtení `.env` | Spouštějte agenty přes `launcher\Launch-*.cmd`, které `.env` načítají |
 | 19 | `Test-Workspace` hlásí `PSScriptAnalyzer: ... FAIL` | Reálný nález PSScriptAnalyzeru | Přečtěte nález v detailu a opravte skript |
 | 20 | Vše funguje, ale `Test-Workspace` hlásí `chybí soubor: ...` | Nekompletní rozbalení ZIPu | Rozbalte archiv znovu se zachováním struktury |
+| 21 | Reasonix ukazuje u requestu prázdnou cenu nebo `$0` | Model není v oficiálním ceníku Reasonixu (starší nebo přejmenovaný název) | Použijte `deepseek-flash` / `deepseek-v4-flash` / `deepseek-v4-pro`, nebo dopište `prices` do konfigurace; stav ověří `reasonix doctor billing` |
+| 22 | Reasonix ignoruje konfiguraci v `data\reasonix\config.toml` | Ten soubor není místo, odkud Reasonix konfiguraci čte | Zkopírujte ho do `./reasonix.toml` v projektu nebo do `<Reasonix home>\config.toml` (`%APPDATA%\reasonix`); viz `gists/0002-reasonix-config.md` |
+| 23 | Cache hity jsou nízké, cena roste | Prefix requestu se mění (nízký `compact_ratio`, nestabilní vkládaný obsah) | Nechte `compact_ratio` na `0.80`, `[environment] enabled = true`; stav sledujte přes `/status` a `show_turn_usage` |
 
 ## Systematický postup
 

@@ -1,35 +1,51 @@
 {
-  "$comment": "Portable AI Workspace - dostupné modely. Cíl: data/reasonix/models.json",
+  "$comment": "Portable AI Workspace - přehled modelů. Cíl: data/reasonix/models.json. Ceny jsou snímek oficiálního ceníku pro odhad nákladů; sazby pro Reasonix řeší jeho vlastní katalog a tento soubor nečte.",
   "provider": "deepseek",
   "baseUrlFrom": "DEEPSEEK_BASE_URL",
   "apiKeyFrom": "DEEPSEEK_API_KEY",
-  "default": "deepseek-chat",
+  "default": "deepseek-flash",
+  "pricingSource": "https://api-docs.deepseek.com/quick_start/pricing",
+  "pricingVerifiedWith": "reasonix doctor billing (Reasonix 1.38.11)",
+  "pricingVerifiedAt": "2026-09-24",
+  "priceUnit": "USD za 1M tokenů",
   "models": [
     {
-      "id": "deepseek-chat",
-      "label": "DeepSeek Chat",
+      "id": "deepseek-flash",
+      "label": "DeepSeek Flash",
       "role": "general",
-      "contextWindow": 131072,
-      "maxOutput": 8192,
+      "contextWindow": 1000000,
+      "maxOutput": 32768,
       "temperature": 0.2,
-      "notes": "Obecný model pro běžné úlohy a psaní kódu."
+      "price": { "cacheHit": 0.006, "input": 0.3, "output": 1.2, "currency": "USD" },
+      "notes": "Výchozí model. Cachovaný vstup je ~50x levnější než cache miss - proto se vyplatí držet stabilní prefix."
     },
     {
-      "id": "deepseek-reasoner",
-      "label": "DeepSeek Reasoner",
+      "id": "deepseek-v4-flash",
+      "label": "DeepSeek V4 Flash",
+      "role": "general",
+      "contextWindow": 1000000,
+      "maxOutput": 32768,
+      "temperature": 0.2,
+      "price": { "cacheHit": 0.006, "input": 0.3, "output": 1.2, "currency": "USD" },
+      "notes": "Stejná cenová hladina jako deepseek-flash; použijte, když brána nebo nástroj nabízí jen název s -v4-."
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "label": "DeepSeek V4 Pro",
       "role": "reasoning",
-      "contextWindow": 131072,
+      "contextWindow": 1000000,
       "maxOutput": 65536,
       "temperature": 0.6,
-      "notes": "Model s explicitním uvažováním. Vyšší cena, lepší výsledky u složitých úloh."
+      "price": { "cacheHit": 0.044, "input": 1.32, "output": 3.96, "currency": "USD" },
+      "notes": "Dražší (~4,4x vstup, ~3,3x výstup proti flash). Vyplatí se u složitých úloh; v konfiguraci jako planner_model nebo přes --model."
     }
   ],
   "fallbacks": [
-    "deepseek-chat"
+    "deepseek-flash"
   ],
   "routing": {
-    "default": "deepseek-chat",
-    "onComplexity": "deepseek-reasoner",
+    "default": "deepseek-flash",
+    "onComplexity": "deepseek-v4-pro",
     "complexityThreshold": "high"
   }
 }

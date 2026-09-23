@@ -7,6 +7,61 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Reasonix: cachování a cena jako první občan konfigurace.**
+  `gists/snippets/reasonix.toml` je přepsaný na schéma, které Reasonix 1.38.x
+  opravdu čte: `[[providers]]` s `models`/`context_window`, `default_model`,
+  `[billing] display_currency`, `[permissions] mode`, `[agent] compact_ratio`
+  a cost control přes `max_output_tokens` (32768 pro flash, 65536 pro
+  `deepseek-v4-pro` přes `model_overrides`). Komentáře vysvětlují, proč se ceny
+  **nepinují** — oficiální katalog Reasonixu je doplní sám.
+- **`gists/snippets/models.json` nese snímek oficiálního ceníku**
+  (`cacheHit`/`input`/`output` za 1M tokenů) včetně zdroje a data ověření,
+  takže se náklady dají odhadnout i mimo Reasonix.
+- **`docs/02-CONFIG.md`: sekce „Reasonix: cachování a cena“** — v jakém pořadí
+  Reasonix konfiguraci hledá, které klíče drží prefix byte-stabilní (a tedy
+  cache hity), které řídí cenu, a jak stav ověřit (`reasonix doctor billing`,
+  `reasonix config compact-ratio`, denní ledger ve `stats/<datum>.jsonl`).
+- **Pi: dokumentované přepínače rozšíření `pi-reasonix`** (`PI_REASONIX_CACHE`,
+  `PI_REASONIX_COST`, `PI_REASONIX_METRICS`, `REASONIX_RESULT_CAP_TOKENS`,
+  `REASONIX_SCAVENGE`) v `.env` vzorech, `gists/0004-pi-reasonix.md`
+  a `docs/02-CONFIG.md`.
+- **`docs/03-TROUBLESHOOTING.md` řádky 21-23** — prázdná cena u requestu,
+  ignorovaná konfigurace v `data\reasonix` a nízké cache hity.
+
+### Changed
+
+- **Modely srovnány s ceníkem, který Reasonix opravdu zná.** Výchozí hodnoty
+  jsou `DEEPSEEK_MODEL=deepseek-flash` a `DEEPSEEK_REASONER_MODEL=deepseek-v4-pro`.
+  Dřívější `deepseek-chat` / `deepseek-reasoner` v katalogu Reasonixu 1.38.11
+  nejsou, takže pro ně zůstal cost receipt prázdný. Srovnány všechny tři
+  `.env` vzory, `docs/02-CONFIG.md`, `env/README.md`, `gists/0002`,
+  `gists/0004`, `gists/snippets/models.json` i `manual/04-glossary.md`.
+- **`ANTHROPIC_MODEL` zůstává `deepseek-chat`** — Anthropic-kompatibilní brána
+  DeepSeeku má vlastní názvy modelů a ceník Reasonixu se této cesty netýká
+  (v `.env` vzorech je to nově okomentované).
+- **`REASONIX_HOME` a `REASONIX_CACHE_HOME` místo vymyšlených klíčů.**
+  `REASONIX_CONFIG_DIR`, `REASONIX_MODEL` a `REASONIX_REASONING_EFFORT`
+  z `.env` vzorů zmizely — Reasonix takové proměnné nečte (model je
+  `default_model` v konfiguraci, jednorázově `reasonix --model`).
+
+### Fixed
+
+- **Vzor konfigurace Reasonixu byl tiše ignorovaný.** Starší `reasonix.toml`
+  používal klíče `[provider]`, `[model]`, `[agent] reasoning_effort`,
+  `[agent] auto_approve`, `[agent] max_iterations` a `[workspace]`, které
+  v reálném schématu neexistují. Převodní tabulka starý → nový klíč je
+  v `gists/0002-reasonix-config.md`.
+- **`gists/0004-pi-reasonix.md` už netvrdí, že Pi a Reasonix sdílejí `config.toml`**
+  přes `REASONIX_CONFIG_DIR`. Pi čte z `.env` jen klíč; cache a cost chování
+  obstarávají přepínače rozšíření, jejichž stav zobrazí `/reasonix-status`.
+- **`manual/04-glossary.md`** — reasoning effort je `default_effort`
+  v konfiguraci Reasonixu (ne proměnná prostředí) a reasoner model je
+  `deepseek-v4-pro`.
+- **`gists/README.md`** — cíl `reasonix.toml` uvádí i druhé přesunutí do
+  `<Reasonix home>\config.toml`.
+
 ## [1.0.9] - 2026-09-23
 
 ### Added

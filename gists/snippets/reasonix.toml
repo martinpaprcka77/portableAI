@@ -1,24 +1,60 @@
-# Portable AI Workspace — konfigurace Reasonixu
-# Cíl: data/reasonix/config.toml
+# Portable AI Workspace — vzor konfigurace Reasonixu (schéma 1.38.x).
+#
+# Kam soubor patří — Reasonix čte konfiguraci v tomto pořadí:
+#   flag > ./reasonix.toml (projekt) > <Reasonix home>/config.toml > výchozí hodnoty
+# <Reasonix home> je na Windows %APPDATA%\reasonix; REASONIX_HOME ho přesune
+# i s celým stavem a cache. Setup tento vzor vysadí do data/reasonix/config.toml,
+# odkud ho zkopírujte na jedno z platných míst — viz gists/0002-reasonix-config.md.
+#
 # Klíč se bere z prostředí (DEEPSEEK_API_KEY), nikdy se neukládá sem.
 
-[provider]
-name        = "deepseek"
-base_url    = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
+config_version = 10
+default_model  = "deepseek/deepseek-flash"   # "poskytovatel/model", nebo jen poskytovatel
 
-[model]
-default     = "deepseek-chat"
-reasoning   = "deepseek-reasoner"
-max_tokens  = 8192
-temperature = 0.2
+[ui]
+show_turn_usage = true   # token a cost receipt u každého requestu (včetně cachované části)
+
+[billing]
+display_currency = "USD"   # auto|CNY|USD; mění jen zobrazení, ne ceny poskytovatelů
 
 [agent]
-reasoning_effort  = "medium"
-auto_approve      = false
-max_iterations    = 25
+temperature   = 0.0
+compact_ratio = 0.80   # jediný automatický trigger kompakce: 0.70 dřív, 0.85 později.
+# Nižší hodnota = častější summary a kratší prefix → méně cache hitů.
+# 0.80 je doporučený kompromis; ověření: reasonix config compact-ratio
 
-[workspace]
-root              = "."
-log_dir           = "logs"
-respect_gitignore = true
+[environment]
+enabled = true   # stabilní úvodní souhrn prostředí → prefix zůstává byte-stabilní (cache)
+
+[permissions]
+mode = "ask"   # ask|allow|deny pro zápisové nástroje; čtení je povolené vždy
+
+[[providers]]
+name          = "deepseek"
+kind          = "openai"
+base_url      = "https://api.deepseek.com"
+models        = ["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-pro"]
+default       = "deepseek-flash"
+api_key_env   = "DEEPSEEK_API_KEY"
+balance_url   = "https://api.deepseek.com/user/balance"
+context_window = 1000000
+max_output_tokens = 32768   # strop výstupu na turn (cost control); 0 = ponechat serveru
+billing_currency  = "USD"
+thinking      = "enabled"
+web_search    = true
+supported_efforts = ["disabled", "low", "high", "max"]
+default_effort    = "high"
+# Náročnější model potřebuje větší prostor na výstup — per-model override:
+model_overrides = { "deepseek-v4-pro" = { max_output_tokens = 65536 } }
+# Volitelná dvoufázová spolupráce (planner + executor) v oddělených cache-stabilních relacích:
+# planner_model  = "deepseek/deepseek-v4-pro"
+# subagent_model = "deepseek/deepseek-v4-pro"
+
+# Ceny záměrně NEPINUJEME. Reasonix má vlastní oficiální tabulku
+# (cache_hit / input / output za 1M tokenů) a klíč `prices` by ji přebil.
+# Ověřeno na Reasonixu 1.38.11: katalog zná `deepseek-flash`, `deepseek-v4-flash`
+# i `deepseek-v4-pro` a sazby doplní sám (zdroj
+# https://api-docs.deepseek.com/quick_start/pricing). Stav ověříte příkazem
+# `reasonix doctor billing`. Vlastní sazbu zapište, jen když ji máte z vlastního
+# ceníku (typicky pro model, který v katalogu chybí):
+# prices = { "deepseek-flash" = { cache_hit = 0.006, input = 0.3, output = 1.2, currency = "$" } }

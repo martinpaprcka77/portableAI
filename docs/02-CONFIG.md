@@ -8,7 +8,7 @@
 | `env/.env.example` | ano | vzor konfigurace pro runtime |
 | `env/.env` | **ne** (gitignored) | skutečné hodnoty včetně API klíče |
 | `gists/snippets/*` | ano | hotové konfigurační soubory ke zkopírování |
-| `data/reasonix/config.toml` | **ne** | vygenerovaná konfigurace Reasonixu |
+| `data/reasonix/config.toml` | **ne** | vzor konfigurace Reasonixu vysazený ze `gists/snippets/reasonix.toml`; Reasonix ho sám nečte — zkopírujte ho tam, odkud ho čte (viz „Reasonix: cachování a cena“) |
 | `.reasonix/` | **ne** (gitignored) | runtime stav agenta (tasky, snapshoty), stejně jako `logs/` a `bin/` |
 | `session-*.md` | **ne** (gitignored) | transkript běžící session agenta v kořeni workspace |
 | `.vscode/settings.json` | ano | nastavení editoru (encoding, EOL) |
@@ -20,17 +20,90 @@
 | --- | --- | --- |
 | `DEEPSEEK_API_KEY` | autentizace vůči DeepSeek API | — (nutné vyplnit) |
 | `DEEPSEEK_BASE_URL` | endpoint OpenAI-kompatibilního API | `https://api.deepseek.com/v1` |
-| `DEEPSEEK_MODEL` | model pro běžné úlohy | `deepseek-chat` |
-| `DEEPSEEK_REASONER_MODEL` | model pro reasoning | `deepseek-reasoner` |
+| `DEEPSEEK_MODEL` | model pro běžné úlohy | `deepseek-flash` |
+| `DEEPSEEK_REASONER_MODEL` | model pro reasoning | `deepseek-v4-pro` |
 | `ANTHROPIC_BASE_URL` | endpoint pro Claude Code | `https://api.deepseek.com/anthropic` |
 | `ANTHROPIC_AUTH_TOKEN` | token pro Claude Code | odvozeno z `DEEPSEEK_API_KEY` |
-| `ANTHROPIC_MODEL` | model pro Claude Code | `deepseek-chat` |
-| `REASONIX_CONFIG_DIR` | kam ukládat konfiguraci Reasonixu | `./data/reasonix` |
-| `REASONIX_MODEL` | model Reasonixu | `deepseek-chat` |
-| `REASONIX_REASONING_EFFORT` | úsilí reasoningu | `medium` |
+| `ANTHROPIC_MODEL` | model pro Claude Code | `deepseek-chat` — Anthropic-kompatibilní brána má vlastní názvy |
+| `REASONIX_HOME` | celý Reasonix home (konfigurace, stav, cache) | `%APPDATA%\reasonix` |
+| `REASONIX_CACHE_HOME` | jen cache Reasonixu | `%LOCALAPPDATA%\reasonix\cache` |
 | `PORTABLEAI_PI_EXTENSIONS` | `1` nainstaluje volitelné rozšíření Pi (`pi-reasonix`) | `1` |
+| `PI_REASONIX_ENABLED` | `0` vypne rozšíření `pi-reasonix` | `1` |
+| `PI_REASONIX_CACHE` | cache-first smyčka rozšíření (stabilizace prefixu) | `1` |
+| `PI_REASONIX_COST` | cost control rozšíření (kompakce tool výsledků) | `1` |
+| `PI_REASONIX_METRICS` | sběr cache a cost metrik | `1` |
+| `REASONIX_RESULT_CAP_TOKENS` | strop tokenů na jeden tool výsledek | `3000` |
+| `REASONIX_SCAVENGE` | `1` doplní tool calls vytažené z `<think>` | `0` |
 | `PORTABLE_AI_LOG_LEVEL` | výchozí úroveň logování | `INFO` |
 | `NODE_ENV` | režim Node | `development` |
+
+Model a ceny Reasonixu v `.env` nejsou — Reasonix je čte ze své konfigurace
+(`reasonix.toml` / `config.toml`), protože se vážou na konkrétního
+poskytovatele, ne na proces. Proměnné `REASONIX_*` výše mění jen umístění
+jeho souborů.
+
+## Reasonix: cachování a cena
+
+Reasonix stojí na **byte-stabilním prefixu** DeepSeeku: dokud se začátek
+requestu nemění, vrací DeepSeek většinu promptu z diskové cache a cachovaný
+vstup je řádově levnější než cache miss. Konfigurace tedy „nezapíná cache“ —
+hlídá, aby prefix zůstal stabilní, a aby se náklady daly odečíst.
+
+### Kde konfigurace bydlí
+
+```
+flag > ./reasonix.toml (projekt) > <Reasonix home>/config.toml > výchozí hodnoty
+```
+
+`<Reasonix home>` je na Windows `%APPDATA%\reasonix` a přesune ho
+`REASONIX_HOME` (i se stavem a cache). Vzor drží
+`gists/snippets/reasonix.toml`; setup ho vysadí do `data/reasonix/config.toml`,
+což je jen výchozí bod ke zkopírování — Reasonix ten soubor sám nečte.
+Postup: [`gists/0002-reasonix-config.md`](../gists/0002-reasonix-config.md).
+
+### Cache
+
+| Klíč | Význam |
+| --- | --- |
+| `[agent] compact_ratio` | jediný automatický trigger kompakce (0.30–0.85). Nižší hodnota = dřívější summary a kratší prefix → **méně cache hitů**. Výchozí `0.80`. |
+| `[environment] enabled` | vloží stabilní souhrn prostředí do promptu; vypnutý souhrn znamená méně stabilní prefix. |
+| `[ui] show_turn_usage` | u každého requestu vypíše tokeny a cenu včetně cachované části. |
+| `[desktop] status_bar_items` | obsahuje `cache`, `cache_avg`, `turn_cache_tokens` a `cost`. |
+
+Efektivní hodnotu a její zdroj vypíše `reasonix config compact-ratio`; živé
+statistiky `/status` v interaktivní relaci. Denní ledger leží v
+`%APPDATA%\reasonix\stats\<datum>.jsonl` (položky `cache_hit`, `cache_miss`,
+`cost_amount`, `pricing_fingerprint`).
+
+### Cena
+
+Ceny nepinujte, dokud k tomu nemáte důvod: Reasonix má vlastní **oficiální
+tabulku** (`cache_hit` / `input` / `output` za 1M tokenů) a klíč `prices`
+v `[[providers]]` ji přebije — ručně zapsaná sazba se pak hlásí jako
+„custom price protected“ a dál se neaktualizuje.
+
+| Klíč | Význam |
+| --- | --- |
+| `billing_currency` | měna pevných sazeb poskytovatele (`CNY`/`USD`), ke které se ceny vážou. |
+| `[billing] display_currency` | `auto`/`CNY`/`USD`; mění jen zobrazení (totéž `reasonix config currency`). |
+| `max_output_tokens` | strop výstupu na jeden turn — cost control. `0` = ponechat serveru. |
+| `model_overrides` | per-model override stropu (dražší model dostane větší prostor). |
+
+`price` (jedna sazba pro celého poskytovatele) je jen záložní hodnota pro
+modely, které katalog nezná; teprve `prices` (per-model) katalog přebíjí
+a hlásí se jako „custom price protected“.
+
+Ověřeno na Reasonixu 1.38.11: katalog zná `deepseek-flash` a `deepseek-v4-flash`
+(`cache_hit` 0.006, `input` 0.3, `output` 1.2 USD za 1M) i `deepseek-v4-pro`
+(`0.044` / `1.32` / `3.96`), zdroj
+`https://api-docs.deepseek.com/quick_start/pricing`. Stav ověříte příkazem:
+
+```powershell
+reasonix doctor billing    # display currency, sazby a fingerprinty poskytovatelů
+```
+
+Když je model v katalogu neznámý (starší nebo přejmenovaný název), zůstane bez
+ceny a cost receipt se nevyplní — teprve pak má smysl `prices` dopsat ručně.
 
 ## Priority
 
@@ -47,7 +120,7 @@ Hodnoty se čtou v tomto pořadí (první vyhrává):
 jednorázově přebít hodnotu bez editace souboru:
 
 ```powershell
-$env:DEEPSEEK_MODEL = 'deepseek-reasoner'
+$env:DEEPSEEK_MODEL = 'deepseek-v4-pro'
 pwsh -File scripts\Get-AiStackInfo.ps1
 ```
 
@@ -248,4 +321,5 @@ Po jakékoli změně konfigurace:
 ```powershell
 pwsh -File scripts\Get-AiStackInfo.ps1   # ověř, že se hodnoty načetly
 pwsh -File scripts\Test-Workspace.ps1    # ověř, že struktura drží
+reasonix doctor billing                  # ověř, že Reasonix zná sazby poskytovatelů
 ```

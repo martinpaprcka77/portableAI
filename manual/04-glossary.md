@@ -37,7 +37,7 @@ výpočet.
 
 **Reasoning effort** — míra, jak dlouho má model „přemýšlet“ před odpovědí.
 Vyšší úsilí znamená lepší výsledky u složitých úloh a vyšší cenu.
-V konfiguraci `REASONIX_REASONING_EFFORT`.
+V konfiguraci Reasonixu `default_effort` (případně `/effort` v relaci).
 
 **Chain-of-thought (CoT)** — explicitní kroky uvažování, které model generuje
 před odpovědí. Zlepšuje přesnost u vícekrokových úloh.
@@ -45,8 +45,8 @@ před odpovědí. Zlepšuje přesnost u vícekrokových úloh.
 **Token** — základní jednotka textu pro model (přibližně část slova). Cena a
 limity se počítají v tokenech.
 
-**Reasoner model** — model optimalizovaný pro uvažování (`deepseek-reasoner`)
-na rozdíl od obecného chat modelu (`deepseek-chat`).
+**Reasoner model** — model optimalizovaný pro uvažování (`deepseek-v4-pro`)
+na rozdíl od obecného a levnějšího modelu (`deepseek-flash`).
 
 ## Protokoly a konfigurace
 

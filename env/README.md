@@ -33,7 +33,7 @@ Nalezené hodnoty zapíše do proměnných prostředí **aktuálního procesu**.
 Už existující proměnné nepřepisuje — můžete tedy hodnotu přebít zvenčí:
 
 ```powershell
-$env:DEEPSEEK_MODEL = 'deepseek-reasoner'
+$env:DEEPSEEK_MODEL = 'deepseek-v4-pro'
 pwsh -File scripts\Get-AiStackInfo.ps1
 ```
 
