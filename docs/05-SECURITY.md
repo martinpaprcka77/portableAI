@@ -1,5 +1,9 @@
 # 05 — Bezpečnost
 
+Technické detaily k bezpečnosti workspace. Závazná pravidla pro hlášení
+zranitelností a bezpečnostní model jsou v [`SECURITY.md`](../SECURITY.md)
+v kořeni repozitáře — tento dokument je rozvádí do konkrétních postupů.
+
 ## Kde se ukládají secrets
 
 | Místo | Obsah | V gitu? |

@@ -7,6 +7,32 @@ a projekt dodržuje [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-09-23
+
+### Added
+
+- **`SECURITY.md` - bezpečnostní politika.** Podporované verze, hlášení
+  zranitelností (neveřejný email, odpověď do 72 hodin), co nikdy
+  necommitovat včetně postupu po omylem commitnutém klíči (revokace →
+  `git filter-repo` → force push), bezpečnostní opatření v repu,
+  bezpečnostní model (user-scope, zero-admin, žádná telemetrie) a
+  doporučení pro uživatele. `docs/05-SECURITY.md` zůstává technickým
+  detailem a oba dokumenty na sebe navzájem odkazují.
+- **GitHub issue templates (bug report, feature request)** -
+  `.github/ISSUE_TEMPLATE/bug_report.md` a
+  `.github/ISSUE_TEMPLATE/feature_request.md`.
+- **GitHub PR template** - `.github/pull_request_template.md`.
+- **Badges v `README.md` (CI, license, version, platform, DeepSeek)** -
+  jednotný blok hned pod hlavním nadpisem; součástí je i odkaz na
+  `SECURITY.md` v sekci „Bezpečnost“.
+
+### Changed
+
+- **`VERSION` a verze v `landing/index.html`** srovnány na `1.0.7`.
+- **`README.md`** - původní čtyři ad-hoc badges (Windows, PowerShell, Node,
+  License) nahrazeny blokem výše; PowerShell a licence se neduplikují a
+  Windows badge nahradil Platform badge.
+
 ## [1.0.6] - 2026-09-23
 
 ### Fixed

@@ -1,11 +1,13 @@
 # Portable AI Workspace
 
-> Samostatné AI vývojové prostředí pro Windows 11 — bez admin práv, bez globálních instalací.
+[![CI](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml/badge.svg)](https://github.com/martinpaprcka77/portableAI/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)](VERSION)
+[![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
+[![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D6.svg?logo=windows&logoColor=white)](https://www.microsoft.com/windows/windows-11)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-Ready-4B6BFB.svg)](https://api-docs.deepseek.com/)
 
-![Windows](https://img.shields.io/badge/Windows-11-blue)
-![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-blue)
-![Node](https://img.shields.io/badge/Node-22.19%2B-green)
-![License](https://img.shields.io/badge/License-MIT-green)
+> Samostatné AI vývojové prostředí pro Windows 11 — bez admin práv, bez globálních instalací.
 
 ## Co to je
 
@@ -149,8 +151,12 @@ Aktuální verze je v [`VERSION`](VERSION); historie změn je v [`CHANGELOG.md`]
 
 ## Bezpečnost
 
-Secrets patří výhradně do `env\.env`, který je v `.gitignore`. Podrobnosti:
-[`docs/05-SECURITY.md`](docs/05-SECURITY.md).
+Secrets patří výhradně do `env\.env`, který je v `.gitignore`.
+
+- [Security Policy](SECURITY.md) — hlášení zranitelností, co nikdy
+  necommitovat, bezpečnostní model
+- [Technické detaily bezpečnosti](docs/05-SECURITY.md) — kde bydlí secrets,
+  maskování hodnot v lozích, rotace klíčů
 
 ## Licence
 
